@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SDD Hub</title>
+  <link rel="icon" href="icon.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar"></aside>
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-btn only-mobile" data-action="toggle-sidebar" aria-label="Menú">☰</button>
+        <form class="search" id="search-form" role="search">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14 14l4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <input id="search-input" type="search" placeholder="Buscar en specs y documentos de todos los proyectos…  (Ctrl+K)" autocomplete="off">
+        </form>
+        <div class="topbar-actions">
+          <span class="sync" id="sync" title="Se actualiza solo cada pocos segundos"></span>
+          <button class="btn btn-primary" data-action="add-project">+ Agregar carpeta</button>
+        </div>
+      </header>
+      <div class="view" id="view"></div>
+    </main>
+  </div>
+  <dialog id="dlg"></dialog>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+  <script src="i18n.js"></script>
+  <script src="md.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
