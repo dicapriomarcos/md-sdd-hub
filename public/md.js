@@ -39,6 +39,8 @@
       if (ctx.statuses && ctx.statuses[c]) return hold(`<code class="st-pill" style="--c:${ctx.statuses[c]}">${esc(c)}</code>`);
       return hold(`<code>${esc(c)}</code>`);
     });
+    // los comentarios HTML (p. ej. las marcas <!-- sdd-hub:end -->) no se muestran, aunque vayan dentro de un párrafo
+    s = s.replace(/<!--[\s\S]*?-->/g, '');
     s = s.replace(/!\[([^\]]*)\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g, (_, alt, url) => {
       const src2 = ctx.resolveImage ? ctx.resolveImage(url) : url;
       return hold(`<img alt="${esc(alt)}" src="${esc(safeUrl(src2))}" loading="lazy">`);
