@@ -1,5 +1,5 @@
 Option Explicit
-' SDD Hub: arranca el servidor sin ventana y abre el navegador.
+' MD SDD Hub: arranca el servidor sin ventana y abre el navegador.
 ' Si ya esta en marcha, solo abre el navegador.
 Dim sh, fso, dir
 Set sh = CreateObject("WScript.Shell")

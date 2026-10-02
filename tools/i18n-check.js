@@ -10,6 +10,7 @@ const keys = new Set();
 const STR = "'((?:[^'\\\\]|\\\\.)*)'";
 const patterns = [
   new RegExp(`\\bt\\(\\s*${STR}`, 'g'),
+  new RegExp(`\\btx\\(\\s*${STR}`, 'g'),
   new RegExp(`\\btn\\([^,]+,\\s*${STR},\\s*${STR}`, 'g'),
   new RegExp(`\\bt\\([^'()]*\\?\\s*${STR}\\s*:\\s*${STR}`, 'g'),
 ];

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-// SDD Hub · servidor local sin dependencias. Solo escucha en 127.0.0.1.
+// MD SDD Hub · servidor local sin dependencias. Solo escucha en 127.0.0.1.
 const http = require('http');
 const fs = require('fs');
 const os = require('os');
@@ -14,14 +14,16 @@ const { tr, LANGS } = require('./lib/i18n');
 
 const PORT = Number(process.env.PORT) || 4780;
 const HOST = '127.0.0.1';
-const DATA_DIR = path.join(__dirname, 'data');
+// Carpeta de datos (configurable para pruebas: SDD_HUB_DATA=/ruta node server.js)
+const DATA_DIR = process.env.SDD_HUB_DATA ? path.resolve(process.env.SDD_HUB_DATA) : path.join(__dirname, 'data');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 const SEEN_FILE = path.join(DATA_DIR, 'seen.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
+const VERSION = require('./package.json').version;
 
 // ---------- configuración (JSON, sin base de datos) ----------
 const DEFAULT_SETTINGS = {
-  statuses: P.DEFAULT_STATUSES,
+  statusesByType: {}, // estados personalizados por tipo; si falta un tipo se usan los de serie
   staleDays: 14,
   editor: 'auto',
   appendHistory: true,
@@ -43,6 +45,27 @@ function saveJSON(file, data) {
 const config = loadJSON(CONFIG_FILE, { projects: [], settings: {} });
 config.projects = config.projects || [];
 config.settings = { ...DEFAULT_SETTINGS, ...(config.settings || {}) };
+// Migración desde la 1.1: había una sola lista de estados, que pasa a ser la de las features
+if (Array.isArray(config.settings.statuses)) {
+  if (!config.settings.statusesByType.feature) config.settings.statusesByType.feature = config.settings.statuses;
+  delete config.settings.statuses;
+}
+
+// Tipos de documento con sus estados efectivos (de serie o personalizados en Ajustes)
+function effectiveTypes() {
+  const custom = config.settings.statusesByType || {};
+  return P.DEFAULT_TYPES.map((tp) => ({ ...tp, statuses: Array.isArray(custom[tp.id]) && custom[tp.id].length ? custom[tp.id] : tp.statuses }));
+}
+function typeDef(id) {
+  const tp = effectiveTypes().find((x) => x.id === (id || 'feature'));
+  if (!tp) throw W.httpError(400, 'err.badType');
+  return tp;
+}
+function cleanStatuses(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter((x) => x && /^[a-z0-9][a-z0-9-]*$/.test(x.id))
+    .map((x) => ({ id: x.id, label: String(x.label || x.id), color: /^#[0-9a-f]{6}$/i.test(x.color) ? x.color : '#8b93a1', closed: !!x.closed }));
+}
 const seen = loadJSON(SEEN_FILE, {});
 let seenDirty = false;
 const saveConfig = () => saveJSON(CONFIG_FILE, config);
@@ -98,13 +121,15 @@ function project(id) {
   if (!p) throw W.httpError(404, 'err.projectNotFound');
   return p;
 }
-function scanOne(p, full) { return S.scanProject(p, { ...config.settings, lang: uiLang() }, seen, full); }
+// Ajustes para las escrituras: el idioma de la interfaz decide el del kit si el proyecto aún no tiene uno
+const wset = () => ({ ...config.settings, lang: uiLang() });
+function scanOne(p, full) { return S.scanProject(p, { ...config.settings, types: effectiveTypes(), lang: uiLang() }, seen, full); }
 function getState() {
   if (stateCache && stateCache.lang === uiLang() && Date.now() - stateAt < 1500) return stateCache;
   const projects = config.projects.map((p) => {
     try { return scanOne(p, false); } catch (e) { return { ...p, ok: false, error: e.message }; }
   });
-  stateCache = { lang: uiLang(), settings: config.settings, editors: EDITORS, editor: editorCmd(), projects, home: os.homedir(), platform: process.platform };
+  stateCache = { lang: uiLang(), version: VERSION, types: effectiveTypes(), settings: config.settings, editors: EDITORS, editor: editorCmd(), projects, home: os.homedir(), platform: process.platform };
   stateAt = Date.now();
   return stateCache;
 }
@@ -238,7 +263,7 @@ const routes = {
     let prepared = [];
     if (b.prepare) {
       const c = scanOne(p, false).compat;
-      prepared = W.installKit(p.path, scanOne(p, false), { skill: !c.skill, agents: !c.agentsBlock }, p);
+      prepared = W.installKit(p.path, scanOne(p, false), { ...W.kitPlan(c, 'prepare'), lang: b.lang || uiLang() }, p, wset());
       invalidate();
     }
     return { project: p, prepared };
@@ -271,7 +296,7 @@ const routes = {
 
   'POST /api/file/save': (b) => {
     const p = project(b.id);
-    const r = W.saveFile(p.path, b.rel, String(b.content ?? ''), b.baseMtime, !!b.force, config.settings);
+    const r = W.saveFile(p.path, b.rel, String(b.content ?? ''), b.baseMtime, !!b.force, wset());
     markSeen(W.resolveIn(p.path, b.rel));
     invalidate();
     return r;
@@ -285,7 +310,7 @@ const routes = {
     const abs = W.resolveIn(p.path, rel);
     if (fs.existsSync(abs)) throw W.httpError(409, 'err.fileExists');
     const title = path.basename(rel).replace(/\.(md|markdown|mdx)$/i, '');
-    W.saveFile(p.path, rel, `# ${title}\n\n`, null, false, config.settings);
+    W.saveFile(p.path, rel, `# ${title}\n\n`, null, false, wset());
     markSeen(abs);
     invalidate();
     return { rel };
@@ -302,9 +327,9 @@ const routes = {
 
   'POST /api/spec/status': (b) => {
     const p = project(b.id);
-    if (!config.settings.statuses.some((s) => s.id === b.status)) throw W.httpError(400, 'err.badStatus');
     const spec = findSpec(scanOne(p, false), b.key);
-    const r = W.setStatus(p.path, spec, b.status, b.note, config.settings);
+    if (!typeDef(spec.type).statuses.some((x) => x.id === b.status)) throw W.httpError(400, 'err.badStatus');
+    const r = W.setStatus(p.path, spec, b.status, b.note, wset());
     markSeen(W.resolveIn(p.path, spec.statusFile || spec.mainFile));
     markSeen(path.join(p.path, path.posix.dirname(spec.key), 'README.md'));
     invalidate();
@@ -313,7 +338,7 @@ const routes = {
 
   'POST /api/spec/check': (b) => {
     const p = project(b.id);
-    const r = W.toggleCheck(p.path, b.rel, Number(b.line), b.text, !!b.done, config.settings);
+    const r = W.toggleCheck(p.path, b.rel, Number(b.line), b.text, !!b.done, wset());
     markSeen(W.resolveIn(p.path, b.rel));
     invalidate();
     return r;
@@ -321,7 +346,7 @@ const routes = {
 
   'POST /api/spec/new': (b) => {
     const p = project(b.id);
-    const r = W.createSpec(p.path, scanOne(p, false), b.title, config.settings);
+    const r = W.createSpec(p.path, scanOne(p, false), b.title, wset(), typeDef(b.type), b.slug);
     markSeen(W.resolveIn(p.path, r.rel));
     markSeen(path.join(p.path, path.posix.dirname(r.key), 'README.md'));
     invalidate();
@@ -330,14 +355,17 @@ const routes = {
 
   'POST /api/registry': (b) => {
     const p = project(b.id);
-    const r = W.regenerateRegistry(p.path, scanOne(p, false), config.settings.statuses);
+    const r = W.regenerateRegistry(p.path, scanOne(p, false), typeDef(b.type), wset());
     invalidate();
     return r;
   },
 
   'POST /api/install': (b) => {
     const p = project(b.id);
-    const done = W.installKit(p.path, scanOne(p, false), { ...b, statuses: config.settings.statuses }, p);
+    const scan = scanOne(p, false);
+    // «update»: renueva lo que el proyecto ya tiene, conservando el idioma de su kit
+    const opts = b.update ? { ...W.kitPlan(scan.compat, 'update'), lang: scan.compat.kitLang || b.lang || uiLang() } : { ...b };
+    const done = W.installKit(p.path, scan, { ...opts, featureType: typeDef('feature') }, p, wset());
     invalidate();
     return { done };
   },
@@ -346,7 +374,8 @@ const routes = {
     const p = project(b.id);
     let src;
     if (b.scope === 'builtin') {
-      return { done: W.installKit(p.path, scanOne(p, false), { skill: true }, p) };
+      const scan = scanOne(p, false);
+      return { done: W.installKit(p.path, scan, { ...W.kitPlan(scan.compat, 'prepare'), lang: scan.compat.kitLang || uiLang() }, p, wset()) };
     } else if (b.scope === 'global') {
       src = path.join(os.homedir(), '.claude', 'skills', path.basename(String(b.dir)));
     } else {
@@ -360,7 +389,7 @@ const routes = {
 
   'POST /api/skills/new': (b) => {
     const p = project(b.id);
-    const rel = W.newSkill(p.path, String(b.name || '').trim() || 'nueva-skill', b.description);
+    const rel = W.newSkill(p.path, String(b.name || '').trim() || 'new-skill', b.description, wset());
     invalidate();
     return { rel };
   },
@@ -382,14 +411,14 @@ const routes = {
     if (process.platform !== 'win32') throw W.httpError(400, 'err.windowsOnly');
     const ps = [
       '$d = [Environment]::GetFolderPath("Desktop")',
-      '$s = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $d "SDD Hub.lnk"))',
+      '$s = (New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path $d "MD SDD Hub.lnk"))',
       `$s.TargetPath = '${path.join(process.env.WINDIR || 'C:\\Windows', 'System32', 'wscript.exe')}'`,
       `$s.Arguments = '"${path.join(__dirname, 'lanzar.vbs')}"'`,
       `$s.WorkingDirectory = '${__dirname}'`,
       `$s.IconLocation = '${path.join(__dirname, 'public', 'icon.ico')},0'`,
       `$s.Description = "${t('shortcut.desc')}"`,
       '$s.Save()',
-      'Write-Output (Join-Path $d "SDD Hub.lnk")',
+      'Write-Output (Join-Path $d "MD SDD Hub.lnk")',
     ].join('; ');
     const out = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', ps], { encoding: 'utf8' }).trim();
     return { path: out };
@@ -401,15 +430,16 @@ const routes = {
   },
 
   'POST /api/settings': (b) => {
-    const allowed = ['staleDays', 'editor', 'appendHistory', 'reviewLog', 'author', 'theme', 'statuses', 'lang'];
+    const allowed = ['staleDays', 'editor', 'appendHistory', 'reviewLog', 'author', 'theme', 'lang'];
     for (const k of allowed) if (k in b) config.settings[k] = b[k];
-    if (Array.isArray(b.statuses)) {
-      config.settings.statuses = b.statuses
-        .filter((s) => s && /^[a-z0-9][a-z0-9-]*$/.test(s.id))
-        .map((s) => ({ id: s.id, label: String(s.label || s.id), color: /^#[0-9a-f]{6}$/i.test(s.color) ? s.color : '#8b93a1', closed: !!s.closed }));
-      if (!config.settings.statuses.length) config.settings.statuses = P.DEFAULT_STATUSES;
+    // estados de un tipo: { statusesType: 'fix', statuses: [...] } · restaurar: { resetStatuses: 'fix' }
+    if (b.statusesType && Array.isArray(b.statuses)) {
+      typeDef(b.statusesType);
+      const list = cleanStatuses(b.statuses);
+      if (list.length) config.settings.statusesByType[b.statusesType] = list;
+      else delete config.settings.statusesByType[b.statusesType];
     }
-    if (b.resetStatuses) config.settings.statuses = P.DEFAULT_STATUSES;
+    if (b.resetStatuses) delete config.settings.statusesByType[b.resetStatuses];
     if (!LANGS.includes(config.settings.lang)) config.settings.lang = '';
     saveConfig(); invalidate();
     return { settings: config.settings };
@@ -447,10 +477,13 @@ const server = http.createServer((req, res) => {
     if (!handler) return send(res, 404, { error: t('err.route') });
     // Protección CSRF: las peticiones de escritura deben llevar una cabecera propia
     if (req.method !== 'GET' && req.headers['x-sdd-hub'] !== '1') return send(res, 403, { error: t('err.header') });
-    let raw = '';
-    req.on('data', (c) => { raw += c; if (raw.length > 10 * 1024 * 1024) req.destroy(); });
+    // se juntan los trozos como bytes y se decodifica al final (un carácter UTF-8 puede quedar partido entre trozos)
+    const chunks = [];
+    let size = 0;
+    req.on('data', (c) => { chunks.push(c); size += c.length; if (size > 10 * 1024 * 1024) req.destroy(); });
     req.on('end', () => {
       try {
+        const raw = Buffer.concat(chunks).toString('utf8');
         const body = raw ? JSON.parse(raw) : {};
         const q = Object.fromEntries(url.searchParams);
         const out = handler(req.method === 'GET' ? q : body);
