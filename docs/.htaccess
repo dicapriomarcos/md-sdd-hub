@@ -1,0 +1,11 @@
+# MD SDD Hub · los documentos Markdown de esta carpeta no son accesibles desde la web.
+# Apache 2.4 y 2.2. En Nginx hay que bloquear la ruta en la configuración del servidor.
+<FilesMatch "(?i)\.(md|markdown|mdx)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>

@@ -265,6 +265,13 @@ table.data tbody tr:hover { background: var(--hover); }
 .md li.task.done > label > span { color: var(--muted); }
 .md li.task.struck > label > span { text-decoration: line-through; color: var(--faint); }
 .md li.task ul.tasks { padding-left: 1.6em; }
+.md li.task { position: relative; }
+.md li.task > .copy-task { position: absolute; right: 0; top: 1px; border: 1px solid var(--border); background: var(--panel); color: var(--muted); border-radius: 6px; font-size: 13px; line-height: 1; padding: 3px 7px; cursor: pointer; opacity: 0; transition: opacity .12s; }
+.md li.task:hover > .copy-task, .md li.task > .copy-task:focus-visible, .md li.task > .copy-task.ok { opacity: 1; }
+.md li.task > .copy-task:hover { color: var(--text); background: var(--hover); }
+.md li.task > .copy-task.ok { color: var(--ok); }
+.md li.task > label { padding-right: 36px; }
+@media (hover: none) { .md li.task > .copy-task { opacity: .6; } }
 .md code { font-family: var(--mono); font-size: .86em; background: var(--code-bg); padding: .12em .38em; border-radius: 5px; }
 .md code.st-pill { background: color-mix(in srgb, var(--c) 16%, transparent); color: color-mix(in srgb, var(--c) 72%, var(--text)); font-weight: 600; font-family: var(--sans); }
 .md pre { background: var(--code-bg); padding: 14px 16px; border-radius: 8px; overflow: auto; font-size: 13px; line-height: 1.5; position: relative; }
@@ -294,6 +301,12 @@ table.data tbody tr:hover { background: var(--hover); }
 .tree-dir:first-child { padding-top: 8px; }
 
 .skill-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+/* decisiones y estado de la sesión */
+.dec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; align-items: start; }
+.dec-item { align-items: baseline; cursor: default; }
+.session-banner { align-items: flex-start; }
+.session-banner .grow > div + div { margin-top: 3px; }
+.warn-text { color: var(--warn); }
 .skill-card { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
 .skill-card h4 { margin: 0; font-size: 14px; font-family: var(--mono); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .skill-card p { margin: 0; color: var(--muted); font-size: 13px; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
@@ -321,6 +334,8 @@ dialog::backdrop { background: rgba(10, 12, 18, .45); }
 .dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
 .dlg-head h2 { margin: 0; font-size: 16px; }
 .dlg-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; overflow: auto; max-height: calc(100vh - 200px); }
+/* Mantiene la altura del contenido para que el cuerpo se desplace sin recortarlo. */
+.dlg-body > * { flex-shrink: 0; }
 .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--border); background: var(--panel-2); border-radius: 0 0 14px 14px; }
 .browser { border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }
 .browser-path { display: flex; gap: 6px; align-items: center; padding: 8px 10px; background: var(--panel-2); border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: 12.5px; }

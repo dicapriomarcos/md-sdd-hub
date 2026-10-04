@@ -2,6 +2,24 @@
 (function () {
   'use strict';
 
+  // La instrucción copiada debe respetar la fase del documento, también al copiar una sola tarea.
+  function copiedInstruction(spec, task = false) {
+    const out = [t('Sigue la skill de .skills/sdd/: lee el documento y las reglas de estados e implementación que correspondan. Respeta los estados omitidos en .sdd.json.')];
+    if (spec && spec.type === 'feature' && ['backlog', 'planning'].includes(spec.status)) {
+      out.push(t('Completa la planificación: requisitos, criterios de aceptación y tareas. Cuando todas las secciones estén completas, pasa la spec a awaiting-approval (Esperando aprobación) y solicita la aprobación de la persona. Si falta información imprescindible, indica el bloqueo y mantén planning. No implementes código ni marques casillas de implementación como hechas.'));
+    } else if (spec && spec.type === 'feature' && ['awaiting-approval', 'review'].includes(spec.status)) {
+      out.push(t('La spec espera aprobación: revisa que la planificación esté completa y solicita la aprobación de la persona. No implementes código ni pases a in-progress sin su autorización.'));
+    } else if (spec && spec.type === 'feature' && spec.status === 'in-progress') {
+      out.push(task
+        ? t('Implementa esta tarea y marca solo las casillas que hayas completado y verificado. Pasa la spec a awaiting-review (Esperando revisión) únicamente cuando todas las tareas y criterios estén completados y las pruebas relevantes pasen. No la pases a done por tu cuenta.')
+        : t('Implementa las tareas pendientes y marca solo las casillas que hayas completado y verificado. Al completar todas las tareas y criterios, con las pruebas relevantes en verde, pasa la spec a awaiting-review (Esperando revisión). No la pases a done por tu cuenta.'));
+    } else {
+      out.push(t('Procede según el tipo y estado actual del documento: indica el siguiente paso permitido por la skill y respeta las decisiones reservadas a la persona. No interpretes esta instrucción como aprobación para implementar o cerrar el documento.'));
+    }
+    out.push(t('Si cambias el estado, actualiza Estado y Actualizada, añade una fila al Historial y actualiza su entrada en el README de la carpeta. Registra el trabajo realizado y las pruebas sin marcar trabajo pendiente como completado.'));
+    return out.join('\n');
+  }
+
   // ---------------------------------------------------------------- utilidades
   const $ = (s, el = document) => el.querySelector(s);
   const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -75,15 +93,18 @@
     statusType: 'feature',
     specFilter: {},
     docFilter: { q: '', unread: false, cat: '' },
+    decFilter: { q: '' },
     actFilter: { unread: false, project: '', cat: '' },
     sort: { key: 'id', dir: 1 },
   };
   // Etiquetas de serie de los estados: si no se han personalizado, se muestran en el idioma elegido.
   // Cada entrada: [variantes en español…, inglés]; se respeta la variante (género) de cada tipo.
   const DEFAULT_LABELS = {
-    draft: [['Borrador'], 'Draft'], review: [['En revisión'], 'In review'], approved: [['Aprobada'], 'Approved'],
-    'in-progress': [['En curso'], 'In progress'], verified: [['Verificada', 'Verificado'], 'Verified'],
-    released: [['Publicada', 'Publicado'], 'Released'], superseded: [['Reemplazada'], 'Superseded'],
+    backlog: [['Por hacer', 'Backlog'], 'To do'], draft: [['Borrador'], 'Draft'], review: [['En revisión'], 'In review'], approved: [['Aprobada'], 'Approved'],
+    planning: [['En planificación'], 'Planning'], 'awaiting-approval': [['Esperando aprobación'], 'Awaiting approval'],
+    'awaiting-review': [['Esperando revisión'], 'Awaiting review'], done: [['Finalizado'], 'Done'],
+    'in-progress': [['En desarrollo', 'En curso'], 'In progress'], verified: [['Verificada', 'Verificado'], 'Verified'],
+    released: [['Publicada', 'Publicado'], 'Released'], superseded: [['Reemplazada'], 'Superseded'], cancelled: [['Cancelada', 'Cancelado'], 'Cancelled'],
     proposed: [['Propuesta'], 'Proposed'], accepted: [['Aceptada'], 'Accepted'], rejected: [['Rechazada'], 'Rejected'],
     deprecated: [['Obsoleta'], 'Deprecated'], reported: [['Reportado'], 'Reported'], investigating: [['Investigando'], 'Investigating'],
   };
@@ -121,6 +142,9 @@
     return st ? labelOf(st) : id || t('Sin estado');
   };
   const isClosed = (id, type) => !!((type ? typeStatuses(type).find((x) => x.id === id) : null) || statusMap()[id] || {}).closed;
+  // estados que un proyecto ha dejado de usar en un tipo (Configurar SDD); los documentos que ya estén en ellos se siguen viendo
+  const hiddenIn = (pid, type) => ((projById(pid) || {}).hiddenStatuses || {})[type] || [];
+  const projectStatuses = (pid, type, keep) => typeStatuses(type).filter((x) => x.id === keep || !hiddenIn(pid, type).includes(x.id));
   const projById = (id) => S.state.projects.find((p) => p.id === id);
   const statusColorsForMd = () => Object.fromEntries(allStatuses().map((x) => [x.id, x.color]));
 
@@ -371,12 +395,14 @@
     return `<a class="card proj-card" href="#/p/${p.id}">
       <div class="row"><h4 class="grow ellipsis">${esc(p.name)}</h4>${kit}</div>
       <div class="path ellipsis" title="${esc(p.path)}">${esc(p.path)}</div>
+      ${p.session && (p.session.where || p.session.blockers.length) ? `<div class="small ellipsis ${p.session.blockers.length ? 'warn-text' : 'muted'}" title="${esc(p.session.where)}">${p.session.blockers.length ? '⛔ ' + esc(p.session.blockers[0]) : '📍 ' + esc(p.session.where)}</div>` : ''}
       ${s.total ? stackbar(s.byStatus, 'feature') : `<div class="small faint">${t('Sin specs detectadas')} · ${tn(s.docs, '{n} documento', '{n} documentos')}</div>`}
       <div class="nums">
         ${types().filter((tp) => s.byType && s.byType[tp.id] && s.byType[tp.id].total).map((tp) => `<span><b>${s.byType[tp.id].total}</b> ${esc(typeName(tp.id))}</span>`).join('')}
         ${s.unread ? `<span style="color:var(--unread)"><b style="color:inherit">${s.unread}</b> ${t('sin leer')}</span>` : ''}
         ${s.reviewsPending ? `<span style="color:var(--review)"><b style="color:inherit">${s.reviewsPending}</b> ${t('por revisar IA')}</span>` : ''}
         ${s.alerts ? `<span style="color:var(--warn)">⚠ <b style="color:inherit">${s.alerts}</b></span>` : ''}
+        ${s.secrets ? `<span style="color:var(--warn)" title="${t('Posibles secretos en los documentos')}">🔑 <b style="color:inherit">${s.secrets}</b></span>` : ''}
         <span class="faint">${ago(s.lastActivity)}</span>
       </div></a>`;
   }
@@ -410,7 +436,9 @@
   function boardHtml(specs, showProject, type) {
     type = type || 'feature';
     specs = specs.filter((x) => x.type === type);
-    const cols = [...typeStatuses(type).map((x) => x.id), '_none'];
+    const one = !showProject && specs[0] ? specs[0].pid : null;
+    const used = new Set(specs.map((x) => x.status));
+    const cols = [...typeStatuses(type).filter((x) => !one || used.has(x.id) || !hiddenIn(one, type).includes(x.id)).map((x) => x.id), '_none'];
     const f = S.boardFilter;
     const q = f.q.toLowerCase();
     const filtered = specs.filter((s) => !s.archived && (!q || (s.title + ' ' + (s.id || '')).toLowerCase().includes(q)));
@@ -490,6 +518,7 @@
     const typeCount = (id) => (s.byType && s.byType[id] ? s.byType[id].total : 0);
     const tabs = [
       ...types().map((tp) => [tp.id, `<span class="dot" style="background:${tp.color}"></span>${esc(typeName(tp.id))} <span class="badge" style="background:var(--panel-2)">${typeCount(tp.id)}</span>`]),
+      ['decisiones', `${t('Decisiones')} <span class="badge" style="background:var(--panel-2)">${s.decisions || 0}</span>`],
       ['docs', `${t('Documentos')}${s.unread ? ` <span class="badge unread">${s.unread}</span>` : ''}`],
       ['skills', `${t('Skills')} <span class="badge" style="background:var(--panel-2)">${p.skills.length}</span>`],
       ['revisiones', `${t('Revisiones IA')}${s.reviewsPending ? ` <span class="badge review">${s.reviewsPending}</span>` : ''}`],
@@ -497,6 +526,7 @@
     ];
     let body = '';
     if (TYPE_TEXT[tab]) body = typeTab(p, tab, S.route.view);
+    else if (tab === 'decisiones') body = projectDecisions(p);
     else if (tab === 'docs') body = projectDocs(p);
     else if (tab === 'skills') body = await projectSkills(p);
     else if (tab === 'revisiones') body = projectReviews(p);
@@ -510,12 +540,15 @@
         <div class="row wrap">
           <button class="btn" data-action="open" data-pid="${pid}" data-rel="." data-how="folder">${t('Abrir carpeta')}</button>
           <button class="btn" data-action="open" data-pid="${pid}" data-rel="." data-how="editor">${t('Abrir en editor')}</button>
+          <button class="btn btn-danger" data-action="remove-project" data-pid="${pid}" title="${t('Solo lo quita de MD SDD Hub; no borra nada del disco.')}">${t('Eliminar proyecto')}</button>
           <button class="btn btn-primary" data-action="new-spec" data-pid="${pid}" data-type="${TYPE_TEXT[tab] ? tab : 'feature'}">${t('+ Nuevo documento')}</button>
         </div>
       </div>
       ${kitMissing && tab !== 'sdd' ? `<div class="banner info"><span>💡</span><span class="grow">${t('Instala las <b>instrucciones SDD</b> en este proyecto para que cualquier IA (Codex, Claude Code, Gemini…) escriba los documentos siempre en el formato que esta app entiende y revise los cambios que hagas desde aquí.')}</span><button class="btn btn-sm btn-primary" data-action="prepare-project" data-pid="${pid}">${t('Instalar')}</button></div>` : ''}
-      ${c.outdated ? `<div class="banner warn"><span>↑</span><span class="grow">${t('Las instrucciones SDD de este proyecto son de una versión anterior. Al actualizar se guardan en <code>.sdd/</code> para cualquier IA y se renueva el enlace de AGENTS.md.')}</span><button class="btn btn-sm btn-primary" data-action="update-kit" data-pid="${pid}">${t('Actualizar')}</button></div>` : ''}
+      ${c.outdated ? `<div class="banner warn"><span>↑</span><span class="grow">${t('Las instrucciones SDD de este proyecto son de una versión anterior. Al actualizar se instalan como skill por partes en <code>.skills/sdd/</code>, para que la IA lea solo lo que necesita, y se renueva el enlace de AGENTS.md, CLAUDE.md y GEMINI.md.')}</span><button class="btn btn-sm btn-primary" data-action="update-kit" data-pid="${pid}">${t('Actualizar')}</button></div>` : ''}
       ${s.reviewsPending && tab !== 'revisiones' ? `<div class="banner review"><span>↻</span><span class="grow">${t('La IA tiene <b>{n}</b> de cambios tuyos pendientes de revisar.', { n: tn(s.reviewsPending, '{n} aviso', '{n} avisos') })} ${reviewHint}</span><a class="btn btn-sm" href="#/p/${pid}/revisiones">${t('Ver')}</a></div>` : ''}
+      ${p.secretDocs && p.secretDocs.length ? secretsBanner(p) : ''}
+      ${p.session && tab !== 'sdd' ? sessionBanner(p) : ''}
       <nav class="tabs">${tabs.map(([k, l]) => `<a href="#/p/${pid}/${k}" class="${tab === k ? 'active' : ''}">${l}</a>`).join('')}</nav>
       ${body}`;
   }
@@ -569,7 +602,7 @@
         ${specs.some((x) => x.archived) ? `<button class="chip ${f.archived ? 'on' : ''}" data-action="spec-archived" data-pid="${fkey}">${t('Archivadas')}</button>` : ''}
       </div>
       <div class="card" style="overflow:auto"><table class="data">
-        <thead><tr>${th('id', 'ID')}${th('title', t('Título'))}${th('status', t('Estado'))}${th('progress', t('Progreso'), 'hide-m')}${th('mtime', t('Modificada'), 'hide-m')}${th('alerts', t('Alertas'), 'hide-m')}</tr></thead>
+        <thead><tr>${th('id', 'ID')}${th('title', t('Título'))}${th('status', t('Estado'))}${th('progress', t('Progreso'), 'hide-m')}${th('mtime', t('Modificada'), 'hide-m')}${th('alerts', t('Alertas'), 'hide-m')}<th></th></tr></thead>
         <tbody>${list.map((s) => `
           <tr data-href="${specHref(pid, s.key)}">
             <td class="idchip">${esc(s.id || '—')}</td>
@@ -578,6 +611,7 @@
             <td class="hide-m" style="min-width:140px">${progress(s.checks.done, s.checks.total)}</td>
             <td class="hide-m nowrap muted small" title="${esc(fullDate(s.mtime))}">${ago(s.mtime)}</td>
             <td class="hide-m">${s.alerts.map((a) => `<span class="badge ${a.level === 'review' ? 'review' : a.level === 'warn' ? 'warn' : 'unread'}" title="${esc(a.text)}">${alertIcon[a.level]}</span>`).join(' ')}</td>
+            <td class="nowrap"><button type="button" class="btn btn-ghost btn-sm copy-spec" data-action="copy-spec" data-pid="${pid}" data-key="${esc(s.key)}" title="${t('Copiar instrucción para que la IA proceda con esta spec')}">⧉</button></td>
           </tr>`).join('')}</tbody></table></div>`;
   }
 
@@ -614,7 +648,53 @@
         ${items.map((d) => `<a class="list-item" href="${hrefForDoc(pid, d.rel)}" title="${esc(fullDate(d.mtime))}">
           ${d.unread ? `<span class="dot" title="${t('Sin leer')}"></span>` : '<span style="width:8px"></span>'}
           <span class="grow ellipsis mono" style="font-weight:${d.unread ? 650 : 450}">${esc(d.rel.slice(dir ? dir.length + 1 : 0))}</span>
-          ${catTag(d.category)}<span class="small faint nowrap" style="width:96px;text-align:right">${ago(d.mtime)}</span></a>`).join('')}`).join('') : `<div class="empty">${t('No hay documentos con estos filtros.')}</div>`}</div>`;
+          ${d.secrets ? `<span class="badge warn" title="${t('Posibles secretos en los documentos')}">🔑 ${t('(línea {n})', { n: d.secrets.slice(0, 5).join(', ') })}</span>` : ''}${catTag(d.category)}<span class="small faint nowrap" style="width:96px;text-align:right">${ago(d.mtime)}</span></a>`).join('')}`).join('') : `<div class="empty">${t('No hay documentos con estos filtros.')}</div>`}</div>`;
+  }
+
+  // Posibles secretos (contraseñas, claves, tokens) escritos en los .md del proyecto
+  function secretsBanner(p) {
+    return `<div class="banner warn"><span>🔑</span><div class="grow">
+      <div><b>${t('Posibles secretos en los documentos')}</b> · ${t('Los .md se suben a git y los leen las IAs: quita esos valores, deja solo el nombre de la variable (por ejemplo <code>DB_PASSWORD</code> en <code>.env</code>) y rota la clave si ya se subió.')}</div>
+      <div class="small">${p.secretDocs.slice(0, 8).map((d) => `<a href="${fileHref(p.id, d.rel)}"><code>${esc(d.rel)}</code></a> ${t('(línea {n})', { n: d.lines.slice(0, 5).join(', ') })}`).join(' · ')}${p.secretDocs.length > 8 ? ' …' : ''}</div>
+      </div></div>`;
+  }
+
+  // Dónde quedó el trabajo (.sdd/estado.md): lo escribe la IA al terminar cada tarea o sesión
+  function sessionBanner(p) {
+    const se = p.session;
+    const when = se.updated ? esc(se.updated) : ago(se.mtime);
+    return `<div class="banner ${se.blockers.length ? 'warn' : 'info'} session-banner"><span>📍</span><div class="grow">
+      <div><b>${t('Dónde quedó')}</b> <span class="faint small">· ${when}${se.agent ? ' · ' + esc(se.agent) : ''}</span></div>
+      ${se.where ? `<div>${esc(se.where)}</div>` : ''}
+      ${se.next.length ? `<div class="small"><b>${t('Siguiente:')}</b> ${se.next.slice(0, 3).map(esc).join(' · ')}${se.next.length > 3 ? ' …' : ''}</div>` : ''}
+      ${se.blockers.length ? `<div class="small"><b>${t('Bloqueos:')}</b> ${se.blockers.map(esc).join(' · ')}</div>` : ''}
+      </div><a class="btn btn-sm" href="${fileHref(p.id, se.rel)}">${t('Ver')}</a></div>`;
+  }
+
+  // Decisiones: reglas rápidas de .sdd/decisiones.md y DES / ADR aceptados
+  function projectDecisions(p) {
+    const pid = p.id;
+    const q = S.decFilter.q.trim().toLowerCase();
+    const dec = p.decisions;
+    const byId = new Map(p.specs.filter((x) => x.id).map((x) => [x.id, x]));
+    const refLink = (id) => byId.has(id) ? `<a class="idchip" href="${specHref(pid, byId.get(id).key)}">${esc(id)}</a>` : `<span class="idchip">${esc(id)}</span>`;
+    const match = (txt) => !q || txt.toLowerCase().includes(q);
+    const areas = dec ? dec.areas.map((a) => ({ ...a, items: a.items.filter((it) => match(`${a.area} ${it.text} ${it.refs.join(' ')}`)) })).filter((a) => a.items.length) : [];
+    const docs = (p.decisionDocs || []).filter((d) => match(`${d.id} ${d.title}`));
+    return `
+      <div class="toolbar">
+        <input class="input" style="width:240px" placeholder="${t('Buscar en las decisiones…')}" value="${esc(S.decFilter.q)}" data-input="dec-q">
+        <span class="small muted grow">${t('Reglas vigentes del proyecto. La IA las lee antes de programar o de escribir textos y apunta aquí las que fijes al hablar con ella.')}</span>
+        ${dec ? `<a class="btn btn-sm" href="${fileHref(pid, dec.rel)}?edit=1">${t('Editar archivo')}</a>` : ''}
+        <button class="btn btn-sm btn-primary" data-action="add-decision" data-pid="${pid}">${t('+ Añadir decisión')}</button>
+      </div>
+      ${areas.length ? `<div class="dec-grid">${areas.map((a) => `<div class="card"><div class="card-head"><h3>${esc(a.area)} <span class="badge" style="background:var(--panel-2)">${a.items.length}</span></h3></div>
+        <div class="list">${a.items.map((it) => `<div class="list-item dec-item"><div class="grow">${esc(it.text)} ${it.refs.map(refLink).join(' ')}</div>${it.date ? `<span class="small faint nowrap">${esc(it.date)}</span>` : ''}</div>`).join('')}</div></div>`).join('')}</div>`
+        : `<div class="card empty">${q ? t('Ninguna decisión coincide con la búsqueda.') : dec ? t('Todavía no hay decisiones apuntadas.') : t('Este proyecto aún no tiene <code>{file}</code>. Se crea al añadir la primera decisión, desde aquí o pidiéndoselo a la IA.', { file: p.compat.kitLang === 'en' ? '.sdd/decisions.md' : '.sdd/decisiones.md' })}</div>`}
+      <h3 style="margin:22px 0 10px;font-size:14px">${t('Decisiones con documento')} <span class="faint small" style="font-weight:400">· ${t('diseño y arquitectura en estado aceptado')}</span></h3>
+      ${docs.length ? `<div class="card"><div class="list">${docs.map((d) => `<a class="list-item" href="${specHref(pid, d.key)}">
+        <span class="idchip">${esc(d.id || '')}</span><div class="grow"><div class="t ellipsis">${esc(d.title)}</div></div><span class="tag">${esc(typeName(d.type))}</span></a>`).join('')}</div></div>`
+        : `<div class="card empty">${t('No hay decisiones de diseño ni de arquitectura aceptadas.')}</div>`}`;
   }
 
   async function projectSkills(p) {
@@ -623,7 +703,7 @@
     try { global = (await api.get('/api/global-skills')).skills; } catch {}
     const others = S.state.projects.filter((x) => x.id !== pid && x.ok);
     const skillCard = (sk, actions) => `<div class="card skill-card">
-      <h4>${esc(sk.name)}${sk.scope && sk.scope !== 'global' ? `<span class="tag">${esc(sk.scope)}</span>` : ''}${sk.version ? '<span class="badge ok">MD SDD Hub</span>' : ''}</h4>
+      <h4>${esc(sk.name)}${sk.scope && sk.scope !== 'global' ? `<span class="tag">${esc(sk.scope)}</span>` : ''}${sk.kitVersion ? '<span class="badge ok">MD SDD Hub</span>' : ''}${sk.version ? `<span class="tag" title="${t('Versión')}">v${esc(sk.version)}</span>` : ''}${sk.install ? `<span class="tag" title="${t('Política de instalación')}">${esc(sk.install)}</span>` : ''}</h4>
       <p>${esc(sk.description || t('Sin descripción'))}</p>
       <div class="acts">${actions}</div></div>`;
     const hasSdd = p.compat.skill != null;
@@ -632,7 +712,7 @@
         ${hasSdd ? '' : `<button class="btn btn-primary" data-action="prepare-project" data-pid="${pid}">${t('Instalar instrucciones SDD')}</button>`}
         <button class="btn" data-action="new-skill" data-pid="${pid}">${t('+ Nueva skill')}</button>
         <button class="btn" data-action="copy-skill" data-pid="${pid}" ${others.length ? '' : 'disabled'}>${t('Copiar de otro proyecto…')}</button>
-        <span class="small faint">${t('Las skills del proyecto viven en <code>.claude/skills/&lt;nombre&gt;/SKILL.md</code> y Claude Code las carga solo.')}</span>
+        <span class="small faint">${t('Cada skill es una carpeta <code>.skills/&lt;nombre&gt;/</code>: su <code>SKILL.md</code> es un índice y el detalle va en archivos cortos que la IA lee solo cuando los necesita. También se muestran las de <code>.claude/skills/</code>.')}</span>
       </div>
       <h3 style="margin:8px 0 10px;font-size:14px">${t('En este proyecto')}</h3>
       ${p.skills.length ? `<div class="skill-grid">${p.skills.map((sk) => skillCard(sk, `
@@ -677,7 +757,7 @@
     const item = (ok, title, desc, action = '', old = false) => `<div class="compat-item">
       <span class="st ${old ? 'old' : ok ? 'yes' : 'no'}">${old ? '↑' : ok ? '✓' : '·'}</span>
       <div class="grow"><b>${title}</b><p>${desc}</p></div>${action}</div>`;
-    const missing = c.skill == null || c.outdated || !c.manifest || !c.template || !c.agentsBlock || !c.hook;
+    const missing = c.skill == null || c.outdated || !c.manifest || !c.template || !c.agentsBlock || !c.hook || c.unprotected.length > 0;
     const af = c.agentFiles || {};
     const linked = Object.keys(af).filter((f) => af[f].current);
     return `
@@ -686,15 +766,23 @@
           <div class="card-head"><h3>${t('Kit MD SDD Hub en este proyecto')}</h3>
             <button class="btn ${missing ? 'btn-primary' : ''} btn-sm" data-action="install-kit" data-pid="${pid}">${missing ? t('Instalar / actualizar…') : t('Reinstalar…')}</button></div>
           <div class="compat">
-            ${item(c.skill != null && !c.outdated, t('Instrucciones SDD'), c.skill == null ? t('Sin ellas, cada sesión de IA puede escribir los documentos de una forma distinta.') : c.outdated ? t('Versión {a} instalada; hay una versión {b}.', { a: c.skill, b: c.skillLatest }) : t('<code>{file}</code> y sus plantillas, válidas para cualquier IA · {lang}.', { file: esc(c.instructionsFile || ''), lang: c.kitLang === 'en' ? 'English' : 'Español' }), c.outdated ? `<button class="btn btn-sm btn-primary" data-action="update-kit" data-pid="${pid}">${t('Actualizar')}</button>` : '', c.outdated)}
-            ${item(linked.length > 0, t('Enlace desde los archivos de los agentes'), linked.length ? t('Enlazadas desde {files}: Codex, Claude Code, Gemini, Cursor y otros agentes las siguen.', { files: linked.map((f) => `<code>${f}</code>`).join(', ') }) : t('Se añade un enlace a <code>AGENTS.md</code> (y a <code>CLAUDE.md</code> o <code>GEMINI.md</code> si existen) para que cualquier agente las lea.'))}
+            ${item(c.skill != null && !c.outdated, t('Instrucciones SDD'), c.skill == null ? t('Sin ellas, cada sesión de IA puede escribir los documentos de una forma distinta.') : c.outdated ? t('Versión {a} instalada; hay una versión {b}.', { a: c.skill, b: c.skillLatest }) : t('Skill por partes <code>{file}</code>: un índice corto y archivos que la IA lee solo cuando los necesita. Vale para cualquier IA · {lang}.', { file: esc(c.instructionsFile || ''), lang: c.kitLang === 'en' ? 'English' : 'Español' }), c.outdated ? `<button class="btn btn-sm btn-primary" data-action="update-kit" data-pid="${pid}">${t('Actualizar')}</button>` : '', c.outdated)}
+            ${item(linked.length > 0, t('Enlace desde los archivos de los agentes'), linked.length ? t('Enlazadas desde {files}: Codex, Claude Code, Gemini, Cursor y otros agentes las siguen.', { files: linked.map((f) => `<code>${f}</code>`).join(', ') }) : t('Se añade el mismo enlace a <code>AGENTS.md</code>, <code>CLAUDE.md</code> y <code>GEMINI.md</code> (se crean si no existen) para que cualquier agente lo lea.'))}
             ${c.usesClaude ? item(c.claudeSkill, t('Acceso para Claude Code'), c.claudeSkill ? t('<code>.claude/skills/sdd-spec</code> carga las instrucciones en el momento adecuado.') : t('Opcional: una skill corta en <code>.claude/skills/sdd-spec</code> que remite a las instrucciones.')) : ''}
+            ${item(!!c.projectFile && !(c.onboarding && c.onboarding.pending.length), t('Ficha del proyecto y onboarding'), c.projectFile ? `<a href="${fileHref(pid, c.projectFile)}"><code>${esc(c.projectFile)}</code></a>${c.onboarding ? ' · ' + (c.onboarding.pending.length ? t('pendiente: {steps}. Pídele a la IA «termina el onboarding».', { steps: c.onboarding.pending.map(esc).join(', ') }) : t('onboarding completo')) : ''}` : t('La IA hace el onboarding en la primera sesión: ficha (stack, comandos), Git, diseño y decisiones que ya existen. En un proyecto empezado lo deduce del código y solo te pide confirmar. Pídeselo: «haz el onboarding».'))}
+            ${item(!!c.git, t('Git del proyecto'), c.git ? `<a href="${fileHref(pid, c.git.rel)}"><code>${esc(c.git.rel)}</code></a>${c.git.name || c.git.email ? ' · ' + esc([c.git.name, c.git.email ? `<${c.git.email}>` : ''].filter(Boolean).join(' ')) : ''}${c.git.remotes.length ? '<br>' + c.git.remotes.map((r) => `<code>${esc(r.name)}</code>${r.branch ? ' (' + esc(r.branch) + ')' : ''}: ${esc(r.when.replace(/\*\*/g, '')) || '—'}`).join(' · ') : ''}` : t('Identidad para los commits (nombre y email), remotes origin, dev y pro, y cuándo se sube a cada uno. Producción, por defecto, solo con tu autorización expresa. La IA lo rellena en el onboarding y solo lo lee al hacer commit, push o desplegar.'))}
+            ${item(!c.unprotected.length, t('Protección web (.htaccess)'), c.unprotected.length ? t('Sin <code>.htaccess</code>: {dirs}. Si el proyecto está en una carpeta servida por Apache (XAMPP, hosting), cualquiera puede leer esos .md desde el navegador.', { dirs: c.unprotected.map((d) => `<code>${esc(d)}/</code>`).join(', ') }) : t('Las carpetas con documentos tienen un <code>.htaccess</code> que bloquea el acceso web (Apache).'), c.unprotected.length ? `<button class="btn btn-sm btn-primary" data-action="protect-project" data-pid="${pid}">${t('Proteger')}</button>` : '')}
             ${item(c.hook, t('Hook de revisión para Claude Code'), c.hook ? t('Claude Code recibe un aviso cuando editas algo desde aquí.') : t('Recuerda automáticamente a Claude Code tus cambios pendientes de revisión (en <code>.claude/settings.local.json</code>, no se sube a git).'))}
             ${item(c.manifest, t('Manifiesto <code>.sdd.json</code>'), c.manifest ? t('Carpeta de specs: <code>{dir}</code>', { dir: esc(c.manifestData.specsDir || '') }) : t('Indica a la IA y a la app dónde están las specs y el documento SDD.'))}
             ${item(!!c.template, t('Plantilla de spec'), c.template ? `<code>${esc(c.template)}</code>` : t('Se usará la plantilla de las instrucciones.'))}
             ${types().filter((tp) => c.dirs && c.dirs[tp.id]).map((tp) => item(!!c.registries[tp.id], t('Registro de {type}', { type: esc(typeName(tp.id)) }), c.registries[tp.id] ? `<code>${esc(c.registries[tp.id])}</code>` : t('Tabla con todos los documentos de <code>{dir}</code> y su estado.', { dir: esc(c.dirs[tp.id]) }), `<button class="btn btn-sm" data-action="regen-registry" data-pid="${pid}" data-type="${tp.id}">${c.registries[tp.id] ? t('Regenerar') : t('Crear')}</button>`)).join('')}
             ${item(!!c.sddDoc, t('Documento SDD del sistema'), c.sddDoc ? `<a href="${fileHref(pid, c.sddDoc)}"><code>${esc(c.sddDoc)}</code></a>` : t('Opcional: arquitectura, decisiones y proceso (p. ej. <code>docs/SDD.md</code>).'))}
           </div>
+        </div>
+        <div class="card card-pad stack">
+          <h3>${t('Estados de las features en este proyecto')}</h3>
+          <p class="small muted" style="margin:0">${t('Desmarca los estados que este proyecto no usa (por ejemplo la planificación o la revisión): desaparecen del tablero y la IA los salta. Los demás proyectos no cambian.')}</p>
+          <div class="stack" style="gap:6px">${typeStatuses('feature').filter((x) => !x.closed).map((x, i) => `<label class="row" style="gap:8px"><input type="checkbox" data-change="skip-status" data-pid="${pid}" data-id="${x.id}" ${i === 0 ? 'checked disabled' : hiddenIn(pid, 'feature').includes(x.id) ? '' : 'checked'}><span class="pill" style="--c:${x.color}">${esc(labelOf(x))}</span></label>`).join('')}</div>
         </div>
         <div class="card card-pad stack">
           <h3>${t('Cómo funciona')}</h3>
@@ -733,13 +821,13 @@
     const pendingReview = spec.alerts.find((a) => a.level === 'review');
     const reviewFile = pendingReview && p.reviews ? p.reviews.pending.find((r) => spec.files.some((f) => f.rel === r.target)) : null;
     const reqs = (file.parsed.requirements || []);
-    const statusOpts = typeStatuses(spec.type).map((x) => `<option value="${x.id}" ${x.id === spec.status ? 'selected' : ''}>${esc(labelOf(x))} · ${x.id}</option>`).join('');
+    const statusOpts = projectStatuses(pid, spec.type, spec.status).map((x) => `<option value="${x.id}" ${x.id === spec.status ? 'selected' : ''}>${esc(labelOf(x))} · ${x.id}</option>`).join('');
     const otherAlerts = spec.alerts.filter((a) => a.level !== 'review');
     view.innerHTML = `
       <div class="crumbs"><a href="#/p/${pid}">${esc(p.name)}</a><span>›</span><a href="#/p/${pid}/${spec.type}">${esc(typeName(spec.type))}</a><span>›</span><span class="mono">${esc(spec.key)}</span></div>
       <div class="page-head">
         <div style="min-width:0">
-          <h1>${spec.id ? `<span class="idchip" style="font-size:15px">${esc(spec.id)}</span>` : ''}${esc(spec.title)}</h1>
+          <h1>${spec.id ? `<span class="idchip" style="font-size:15px">${esc(spec.id)}</span>` : ''}${esc(spec.title)} <button type="button" class="btn btn-ghost btn-sm copy-spec" data-action="copy-spec" data-pid="${pid}" data-key="${esc(spec.key)}" data-rel="${esc(file.rel)}" title="${t('Copiar instrucción para que la IA proceda con esta spec')}">⧉ ${t('Copiar instrucción')}</button></h1>
           <div class="row wrap" style="margin-top:8px">
             <span class="status-wrap" style="--c:${statusColor(spec.status)}"><select class="status-select" style="--c:${statusColor(spec.status)}" data-change="spec-status" data-pid="${pid}" data-key="${esc(spec.key)}" title="${t('Cambiar estado (edita el .md)')}">
               ${spec.status ? '' : `<option value="" selected>${esc(spec.statusRaw || t('Sin estado'))}</option>`}${statusOpts}</select></span>
@@ -832,7 +920,7 @@
   function renderMd(text, readonly) {
     const f = S.file;
     return window.MD.render(text, {
-      statuses: statusColorsForMd(), readonly: !!readonly,
+      statuses: statusColorsForMd(), readonly: !!readonly, copyTitle: t('Copiar tarea para pegarla en el chat de la IA'),
       resolveImage: (u) => (/^(https?:|data:)/i.test(u) ? u : `/api/raw?id=${f.pid}&rel=${enc(resolveRel(f.rel, u))}`),
     });
   }
@@ -940,6 +1028,7 @@
             <span class="hint">${t('O escribe un comando propio:')} <input class="input mono" id="set-editor-custom" placeholder="${t('p. ej. cursor')}" style="margin-top:4px"></span></label>
           <label class="field">${t('Tu nombre (columna «Autor» de las specs nuevas)')}<input class="input" id="set-author" value="${esc(st.author || '')}"></label>
           <label class="field">${t('Días sin cambios para marcar una spec en curso como estancada')}<input class="input" type="number" min="1" id="set-stale" value="${st.staleDays}" style="width:110px"></label>
+          <label class="check"><input type="checkbox" id="set-protect" ${st.protectWeb !== false ? 'checked' : ''}><div><b>${t('Proteger los documentos en la web')}</b><span>${t('Al crear documentos, decisiones o skills, añade un <code>.htaccess</code> que bloquea el acceso web a esas carpetas (Apache: XAMPP, hosting). Nunca toca uno que ya exista.')}</span></div></label>
           <label class="check"><input type="checkbox" id="set-review" ${st.reviewLog ? 'checked' : ''}><div><b>${t('Avisar a la IA de mis cambios')}</b><span>${t('Cada edición hecha desde MD SDD Hub crea un aviso con el diff en <code>.sdd/review/</code> para que la IA lo revise.')}</span></div></label>
           <label class="check"><input type="checkbox" id="set-history" ${st.appendHistory ? 'checked' : ''}><div><b>${t('Añadir fila al Historial al cambiar el estado')}</b><span>${t('Además de actualizar «Estado», «Actualizada» y el registro.')}</span></div></label>
           <label class="field">${t('Tema')}
@@ -1000,7 +1089,7 @@
   // Opción común a «Agregar proyecto» y «Buscar proyectos»: preparar el proyecto al agregarlo
   const prepareBox = () => `<label class="check" style="padding:0"><input type="checkbox" id="prep" checked><div>
       <b>${t('Preparar el proyecto para MD SDD Hub')}</b>
-      <span>${t('Instala las instrucciones SDD en <code>.sdd/</code>, válidas para cualquier IA (Codex, Claude Code, Gemini, Cursor…), y las enlaza desde <code>AGENTS.md</code> (y desde <code>CLAUDE.md</code> o <code>GEMINI.md</code> si existen). No toca el resto de esos archivos.')}</span>
+      <span>${t('Instala las instrucciones SDD en <code>.skills/sdd/</code> (un índice corto y un archivo por tema), válidas para cualquier IA (Codex, Claude Code, Gemini, Cursor…), las enlaza desde <code>AGENTS.md</code>, <code>CLAUDE.md</code> y <code>GEMINI.md</code> y protege las carpetas con documentos con un <code>.htaccess</code>. No toca el resto de esos archivos.')}</span>
       <div class="row" style="margin-top:6px;gap:6px"><span class="small muted">${t('Idioma de las instrucciones, de los nombres de archivo y de la IA:')}</span>${langSelect('prep-lang', LANG)}</div>
     </div></label>`;
   const readPrepare = (d) => ({ prepare: !!($('#prep', d) && $('#prep', d).checked), lang: $('#prep-lang', d) ? $('#prep-lang', d).value : LANG });
@@ -1188,10 +1277,11 @@
         <div class="small muted">${t('Se escribirán estos archivos en')} <span class="mono">${esc(p.path)}</span>. ${t('No se borra nada; solo se añaden o actualizan los archivos del kit.')}</div>
         <label class="field">${t('Idioma')}
           <span>${langSelect('k-lang', c.kitLang || LANG)}</span>
-          <span class="hint">${t('Idioma de las instrucciones y plantillas, de los nombres de archivo (<code>instrucciones.md</code> / <code>instructions.md</code>) y de la IA: responderá, escribirá y hablará siempre en ese idioma.')}</span></label>
+          <span class="hint">${t('Idioma de las instrucciones y plantillas, de los nombres de archivo (<code>tipos.md</code> / <code>types.md</code>) y de la IA: responderá, escribirá y hablará siempre en ese idioma.')}</span></label>
         <div>
-          ${opt('k-instr', c.skill == null || c.outdated, t('Instrucciones SDD en <code>.sdd/</code>'), t('Reglas del formato y de los ciclos de vida, y plantillas de cada tipo de documento. Valen para cualquier IA.'))}
-          ${opt('k-agents', !Object.values(af).some((a) => a.current), t('Enlace en <code>AGENTS.md</code>') + (af['AGENTS.md'] ? '' : ' ' + t('(se crea)')) + (af['CLAUDE.md'] ? ', <code>CLAUDE.md</code>' : '') + (af['GEMINI.md'] ? ', <code>GEMINI.md</code>' : ''), t('Así Codex, Claude Code, Gemini, Cursor y otros agentes leen las instrucciones. Se añade al final, entre marcas, sin tocar el resto.'))}
+          ${opt('k-instr', c.skill == null || c.outdated, t('Instrucciones SDD en <code>.skills/sdd/</code>'), t('Skill por partes: un índice corto (<code>SKILL.md</code>) y un archivo por tema (formato, estados, decisiones, sesión, revisión) que la IA lee solo cuando lo necesita. Vale para cualquier IA.'))}
+          ${opt('k-agents', ['AGENTS.md', 'CLAUDE.md', 'GEMINI.md'].some((f) => !(af[f] && af[f].current)), t('Enlace en {files}', { files: ['AGENTS.md', 'CLAUDE.md', 'GEMINI.md'].map((f) => `<code>${f}</code>${af[f] ? '' : ' ' + t('(se crea)')}`).join(', ') }), t('Cada agente lee su archivo (Codex y Cursor <code>AGENTS.md</code>, Claude Code <code>CLAUDE.md</code>, Gemini <code>GEMINI.md</code>): el mismo bloque va en los tres. Se añade al final, entre marcas, sin tocar el resto.'))}
+          ${opt('k-protect', c.unprotected.length > 0, t('Protección web (<code>.htaccess</code>)'), t('Bloquea el acceso desde el navegador a <code>.sdd/</code>, <code>.skills/</code>, <code>.claude/</code> y a los .md de <code>docs/</code>. Necesario si el proyecto está en una carpeta servida por Apache (XAMPP, hosting). No toca los <code>.htaccess</code> que ya existan.'))}
           ${opt('k-claude', c.usesClaude && (!c.claudeSkill || c.outdated), t('Acceso para Claude Code'), t('Skill corta en <code>.claude/skills/sdd-spec</code> que remite a las instrucciones, para que Claude Code las cargue sola.'))}
           ${opt('k-hook', !c.hook, t('Hook de revisión para Claude Code'), t('Copia <code>.claude/hooks/sdd-review.js</code> y lo registra en <code>.claude/settings.local.json</code> (local, no se sube a git). Avisa a Claude de tus cambios pendientes de revisión.'))}
           ${opt('k-manifest', !c.manifest, '<code>.sdd.json</code>', t('Manifiesto con la carpeta de cada tipo de documento y el idioma.'))}
@@ -1207,7 +1297,7 @@
       $('#k-go', d).onclick = async () => {
         const v = (id) => !!($('#' + id, d) && $('#' + id, d).checked);
         try {
-          const r = await api.post('/api/install', { id: pid, lang: $('#k-lang', d).value, instructions: v('k-instr'), agents: v('k-agents'), claude: v('k-claude'), hook: v('k-hook'), manifest: v('k-manifest'), template: v('k-template'), registry: v('k-registry') });
+          const r = await api.post('/api/install', { id: pid, lang: $('#k-lang', d).value, instructions: v('k-instr'), agents: v('k-agents'), claude: v('k-claude'), hook: v('k-hook'), protect: v('k-protect'), manifest: v('k-manifest'), template: v('k-template'), registry: v('k-registry') });
           closeDialog();
           toast(r.done.length ? t('Instalado: {x}', { x: r.done.join(', ') }) : t('Nada que instalar'), { ms: 6000 });
           await loadState(); await loadFull(pid); render();
@@ -1220,15 +1310,39 @@
     openDialog(`${dlgHead(t('Nueva skill'))}
       <div class="dlg-body">
         <label class="field">${t('Nombre')}<input class="input mono" id="sk-name" placeholder="${t('revisar-accesibilidad')}"></label>
-        <label class="field">${t('Descripción')} <span class="hint">${t('Claude decide cuándo usarla leyendo esto: di qué hace y en qué situaciones activarla.')}</span><textarea class="input" id="sk-desc" rows="3"></textarea></label>
+        <label class="field">${t('Descripción')} <span class="hint">${t('La IA decide cuándo usarla leyendo esto: di qué hace y en qué situaciones activarla.')}</span><textarea class="input" id="sk-desc" rows="3"></textarea></label>
+        <label class="field">${t('Dónde')}<select class="input" id="sk-base"><option value=".skills">${t('.skills/ · para cualquier IA (recomendado)')}</option><option value=".claude">${t('.claude/skills/ · Claude Code la carga sola')}</option></select>
+          <span class="hint">${t('Se crea como índice: reglas que valen siempre y una tabla con el archivo que leer para cada tarea.')}</span></label>
       </div>
       <div class="dlg-foot"><button class="btn" data-action="close-dialog">${t('Cancelar')}</button><button class="btn btn-primary" id="sk-go">${t('Crear y editar')}</button></div>`, (d) => {
       $('#sk-name', d).focus();
       $('#sk-go', d).onclick = async () => {
         try {
-          const r = await api.post('/api/skills/new', { id: pid, name: $('#sk-name', d).value, description: $('#sk-desc', d).value });
+          const r = await api.post('/api/skills/new', { id: pid, name: $('#sk-name', d).value, description: $('#sk-desc', d).value, base: $('#sk-base', d).value });
           closeDialog(); await loadFull(pid); await loadState();
           go(`${fileHref(pid, r.rel)}?edit=1`);
+        } catch (e) { fail(e); }
+      };
+    });
+  }
+
+  function dialogAddDecision(pid) {
+    const p = S.full[pid];
+    const areas = [...new Set([...(p.decisionAreas || []), ...((p.decisions && p.decisions.areas) || []).map((a) => a.area)])];
+    openDialog(`${dlgHead(t('Nueva decisión'))}
+      <div class="dlg-body">
+        <label class="field">${t('Área')}<select class="input" id="dc-area">${areas.map((a) => `<option>${esc(a)}</option>`).join('')}</select></label>
+        <label class="field">${t('Decisión')} <span class="hint">${t('Una regla concreta, en imperativo. Por ejemplo: «Di “Guardar cambios”, no “Enviar”, en los formularios».')}</span><textarea class="input" id="dc-text" rows="3"></textarea></label>
+        <label class="field">${t('Documento relacionado (opcional)')}<input class="input mono" id="dc-ref" placeholder="DES-004">
+          <span class="hint">${t('Si la decisión necesita contexto o alternativas (por ejemplo, cómo son los botones en toda la app), mejor crea un documento de diseño o de arquitectura y enlázalo aquí.')}</span></label>
+        <div class="small muted">${t('Se apunta en <code>{file}</code> y la IA recibe un aviso para tenerla en cuenta.', { file: esc((p.decisions && p.decisions.rel) || (p.compat.kitLang === 'en' ? '.sdd/decisions.md' : '.sdd/decisiones.md')) })}</div>
+      </div>
+      <div class="dlg-foot"><button class="btn" data-action="close-dialog">${t('Cancelar')}</button><button class="btn btn-primary" id="dc-go">${t('Añadir')}</button></div>`, (d) => {
+      $('#dc-text', d).focus();
+      $('#dc-go', d).onclick = async () => {
+        try {
+          await api.post('/api/decisions/add', { id: pid, area: $('#dc-area', d).value, text: $('#dc-text', d).value, ref: $('#dc-ref', d).value });
+          closeDialog(); toast(t('Decisión añadida')); await loadState(); await loadFull(pid); render();
         } catch (e) { fail(e); }
       };
     });
@@ -1309,9 +1423,73 @@
       const full = p.path.replace(/[\\/]+$/, '') + sep + el.dataset.rel.split('/').join(sep);
       try { await navigator.clipboard.writeText(full); toast(t('Ruta copiada')); } catch { prompt(t('Ruta:'), full); }
     },
+    // copia una tarea (con su descripción, estado y la spec) lista para pegar en el chat de la IA
+    'copy-task': async (el) => {
+      const f = S.file;
+      if (!f) return;
+      const lines = String(f.content || '').replace(/\r\n?/g, '\n').split('\n');
+      const head = (lines[Number(el.dataset.line)] || '').match(/^(\s*)(?:[-*+]|\d+[.)])\s+\[([ xX~-])\]\s+(.*)$/);
+      if (!head) return;
+      const base = head[1].length;
+      const body = [];
+      for (let i = Number(el.dataset.line) + 1; i < lines.length; i++) {
+        const l = lines[i];
+        if (!l.trim()) { if (/^\s/.test(lines[i + 1] || '') && (lines[i + 1].match(/^\s*/)[0].length > base)) { body.push(''); continue; } break; }
+        if (l.match(/^\s*/)[0].length <= base) break;
+        body.push(l.slice(Math.min(base + 2, l.match(/^\s*/)[0].length)));
+      }
+      const mark = head[2];
+      const state = /[xX]/.test(mark) ? t('hecha') : mark === ' ' ? t('pendiente') : t('descartada');
+      const p = projById(f.pid);
+      const full = S.full[f.pid];
+      const spec = S.route.name === 'spec' && full ? full.specs.find((s) => s.key === S.route.key) : null;
+      const out = [];
+      out.push(t('Proyecto: {x}', { x: p ? p.name : f.pid }) + (spec ? ` · ${spec.id ? spec.id + ' ' : ''}${spec.title} (${spec.status ? statusLabel(spec.status, spec.type) : t('Sin estado')})` : ''));
+      out.push(t('Archivo: {x}', { x: f.rel }));
+      out.push('');
+      out.push(`${t('Tarea')} [${state}]: ${head[3].replace(/\*\*/g, '').trim()}`);
+      const desc = body.join('\n').replace(/\s+$/, '');
+      if (desc) out.push(t('Descripción:') + '\n' + desc);
+      out.push('');
+      out.push(copiedInstruction(spec, true));
+      const text = out.join('\n');
+      try {
+        await navigator.clipboard.writeText(text);
+        el.classList.add('ok');
+        toast(t('Tarea copiada'));
+        setTimeout(() => el.classList.remove('ok'), 1500);
+      } catch { prompt(t('Tarea:'), text); }
+    },
+    // copia la instrucción para que la IA proceda con la spec completa
+    'copy-spec': async (el) => {
+      const pid = el.dataset.pid;
+      const p = projById(pid);
+      const full = S.full[pid];
+      const spec = full ? full.specs.find((s) => s.key === el.dataset.key) : null;
+      if (!spec) return;
+      const out = [];
+      out.push(t('Proyecto: {x}', { x: p ? p.name : pid }) + ` · ${spec.id ? spec.id + ' ' : ''}${spec.title} (${spec.status ? statusLabel(spec.status, spec.type) : t('Sin estado')})`);
+      out.push(t('Archivo: {x}', { x: el.dataset.rel || (spec.files[0] && spec.files[0].rel) || spec.key }));
+      out.push('');
+      out.push(copiedInstruction(spec));
+      const text = out.join('\n');
+      try {
+        await navigator.clipboard.writeText(text);
+        el.classList.add('ok');
+        toast(t('Instrucción copiada'));
+        setTimeout(() => el.classList.remove('ok'), 1500);
+      } catch { prompt(t('Instrucción:'), text); }
+    },
     'new-spec': (el) => dialogNewSpec(el.dataset.pid, el.dataset.type),
     'new-doc': (el) => dialogNewDoc(el.dataset.pid),
     'new-skill': (el) => dialogNewSkill(el.dataset.pid),
+    'add-decision': (el) => dialogAddDecision(el.dataset.pid),
+    'protect-project': async (el) => {
+      try {
+        const r = await api.post('/api/protect', { id: el.dataset.pid });
+        toast(r.done.length ? t('Creado: {x}', { x: r.done.join(', ') }) : t('Nada que proteger'), { ms: 6000 }); await loadState(); await loadFull(el.dataset.pid); render();
+      } catch (e) { fail(e); }
+    },
     'copy-skill': (el) => dialogCopySkill(el.dataset.pid),
     'view-global-skill': (el) => dialogViewGlobalSkill(el.dataset.dir).catch(fail),
     'copy-global-skill': async (el) => {
@@ -1376,7 +1554,7 @@
         await api.post('/api/settings', {
           lang: $('#set-lang').value,
           editor: custom || $('#set-editor').value, author: $('#set-author').value.trim(), staleDays: Math.max(1, Number($('#set-stale').value) || 14),
-          reviewLog: $('#set-review').checked, appendHistory: $('#set-history').checked, theme: $('#set-theme').value,
+          reviewLog: $('#set-review').checked, protectWeb: $('#set-protect').checked, appendHistory: $('#set-history').checked, theme: $('#set-theme').value,
         });
         S.full = {};
         await loadState(); toast(t('Ajustes guardados')); render();
@@ -1456,6 +1634,13 @@
     if (!ch) return;
     const k = ch.dataset.change;
     if (k === 'act-project') { S.actFilter.project = ch.value; render(); }
+    if (k === 'skip-status') {
+      const cur = new Set(hiddenIn(ch.dataset.pid, 'feature'));
+      if (ch.checked) cur.delete(ch.dataset.id); else cur.add(ch.dataset.id);
+      await api.post('/api/projects/update', { id: ch.dataset.pid, hiddenStatuses: { feature: [...cur] } });
+      await loadState(); delete S.full[ch.dataset.pid]; render();
+      return;
+    }
     if (k === 'board-project') { S.boardFilter.project = ch.value; render(); }
     if (k === 'spec-status') {
       const prev = [...ch.options].find((o) => o.defaultSelected);
@@ -1473,6 +1658,7 @@
     if (k === 'board-q') S.boardFilter.q = el.value;
     if (k === 'spec-q') S.specFilter[el.dataset.pid].q = el.value;
     if (k === 'doc-q') S.docFilter.q = el.value;
+    if (k === 'dec-q') S.decFilter.q = el.value;
     clearTimeout(S._inT);
     S._inT = setTimeout(async () => {
       if (k === 'board-q') {

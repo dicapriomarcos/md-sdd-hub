@@ -8,6 +8,33 @@ Every release must update this file, [`CHANGELOG.es.md`](CHANGELOG.es.md), [`REA
 
 ## [Unreleased]
 
+### Fixed
+- Copy spec and Copy task instructions respect the current phase: complete planning and move to Awaiting approval, wait for authorization before implementation, and move to Awaiting review only once all tasks and criteria are verified.
+- The folder picker in “Add project” scrolls all the way to the last projects in short windows or with zoom, without clipping the list or its scrollbar.
+
+### Changed
+- **New feature flow:** `backlog` ("To do") → `planning` → `awaiting-approval` (set by the AI) → `in-progress` ("In development", the person approves) → `awaiting-review` (set by the AI) → `done` ("Finished", the person). Old `review`, `approved`, `verified` and `released` are still recognized when reading and map to the nearest new status. Each project can drop the statuses it does not use (Configure SDD tab): they disappear from its board and are saved as `skipStatuses` in `.sdd.json` so the AI skips them. Fixes and design/architecture keep their statuses. New **Delete project** button in the project header (it only removes it from the app).
+- **New feature and fix statuses.** `draft` ("Borrador") is replaced by `backlog` ("Backlog", for pending work) and a closed `cancelled` status ("Cancelled") is added to features and fixes. Existing `draft`, `borrador`, `todo`, `wontfix`, `cancelled`… are still recognized when reading; documents and custom statuses that already use `draft` keep working.
+- **The SDD instructions are read in parts.** Kit v5 installs them as a folder-based skill in `.skills/sdd/`: `SKILL.md` is a short index (`name`, `version`, `install`, `description` frontmatter, the rules that always apply and a table saying which file to read for each task) and each topic lives in a short file (`types.md`, `format.md`, `statuses.md`, `implementation.md`, `registry.md`, `recording-decisions.md`, `session.md`, `review.md` and `templates/`; in Spanish, `tipos.md`, `formato.md`, `estados.md`…). The AI opens only what the task needs instead of reading all the instructions every time.
+- The link block is written to **`AGENTS.md`, `CLAUDE.md` and `GEMINI.md`**, creating any that are missing, so every agent finds it in its own file.
+- Updating a v4 kit installs `.skills/sdd/` and removes `.sdd/instructions.md` and `.sdd/templates/` (or their Spanish equivalents). `.sdd/` is kept for the project's own files: review notices, profile, status and decisions.
+- New skills are created by default in `.skills/<name>/` (for any AI) in index format; `.claude/skills/` can also be chosen.
+- Kit v5.
+
+### Added
+- **Copy task button**: every checkbox task (`T-NN`, `AC-NN`…) in a spec shows a ⧉ button on hover that copies it ready to paste into any AI chat (Claude, Codex, Gemini…): project, spec (ID, title and status), file, task with its description and state, a warning if the spec is not yet in progress, and a closing instruction to follow the `sdd` skill and tick the box when done.
+- **Quick decisions** (`.sdd/decisions.md` / `.sdd/decisiones.md`): one rule per line, grouped by area (Copy, Interface, Code, Process), with a date and an optional link to its DES or ADR. The AI records right away the rules you set while talking to it ("say X instead of Y", "never…") and reads them before coding or writing copy. Decisions that need context still go in a DES or ADR, linked from the list.
+- **Decisions** tab in each project: rules by area with search, a form to add one (the AI gets a notice) and the list of accepted DESs and ADRs.
+- **Session status** (`.sdd/status.md` / `.sdd/estado.md`): the AI records where the work stands, the next steps and the blockers when it finishes each task or session, and reads it when it starts. The app shows it in the project ("Where things stand") and on its card.
+- **Project profile** (`.sdd/project.md` / `.sdd/proyecto.md`) and **step-by-step onboarding** (`onboarding.md`): profile, Git, design and existing decisions. Also meant for projects already underway: the AI infers what it can from the code (stack, commands, CSS variables, Tailwind, `theme.json`, fonts, components, tone of the copy, libraries and conventions), proposes, and asks only for what is missing, one question at a time. Progress is kept in the profile's "Onboarding" table; once everything is done, it does not ask again. **SDD setup** shows the pending steps.
+- **Security** (`security.md` / `seguridad.md`) and an always-apply rule: **secrets are never written** (passwords, keys, tokens, connection strings, `.env` values) in any `.md`, only the variable name; what to do if one shows up (remove it and rotate it) and which files must not be committed.
+- **The app refuses to save secrets**: when editing a `.md`, adding a decision, creating a document or a skill, or changing a status with a note, if the text contains something that looks like a password, key or token, it is not saved and the line is reported. Example placeholders (`<your-key>`, `${DB_PASSWORD}`, `********`) and variable names are allowed.
+- **Warning about secrets already written**: the app checks each project's `.md` files and flags (🔑) the ones containing possible secrets, with file and line, in the project, on its card and in the document list.
+- **Project Git** (`.sdd/git.md`) and rules in `git.md`, which the AI **reads only when committing, pushing or deploying**: the name and email used for commits (with `git config --local`, never global), the `origin`, `dev` and `pro` remotes with their branch and when to push to each one, commit language and format. **Production (`pro`) only with explicit authorization** for each push, never `--force`; `git status` and a secrets check before every commit. **SDD setup** shows the identity and remotes.
+- **Web protection**: folders with documents get an `.htaccess` (Apache 2.4 and 2.2) that blocks browser access. Hidden ones (`.sdd/`, `.skills/`, `.claude/`…) are blocked entirely and `docs/` only for Markdown files. An existing `.htaccess` is never overwritten. It is installed with the kit, checked in **SDD setup** ("Protect" button) and can be turned off in **Settings**.
+- The **Skills** tab shows the skills in `.skills/` with their version and install policy (`install`).
+- The `.skills/` and `.memory/` folders show up in "Documents" and ".md changes".
+
 ## [1.3.0] - 2026-10-03
 
 ### Changed

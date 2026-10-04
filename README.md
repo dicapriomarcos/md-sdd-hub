@@ -54,6 +54,8 @@ MD SDD Hub gives you one place to:
 - Kanban boards by status, per project or across all projects; dragging a card edits the `.md`.
 - Status changes from the app update the status cell, the “updated” date, the history table and the folder registry.
 - Clickable checkboxes: ticking a box edits the `.md`.
+- **Copy task** (⧉ next to every checkbox): copies the task with its description, state and spec context, ready to paste into any AI chat so it keeps working on it.
+- **Copy spec instruction**: adapts the message to the current status. During planning, it asks the agent to complete the document and move it to Awaiting approval; during development, it asks for implementation and Awaiting review once tasks, criteria and tests are complete. Copying a task respects the same flow.
 - “New document” with a type selector: created in the type's folder with the next free ID, from the project or skill template.
 - Per-type registry (`README.md` of each folder) creation and regeneration.
 
@@ -65,12 +67,18 @@ MD SDD Hub gives you one place to:
 - Global full-text search across all projects (`Ctrl+K`).
 
 **Skills**
-- List of project skills (`.claude/skills`, `.agents/skills`, `.codex/skills`, `.gemini/skills`, `.cursor/skills`), commands and subagents.
+- List of project skills (`.skills`, `.claude/skills`, `.agents/skills`, `.codex/skills`, `.gemini/skills`, `.cursor/skills`), with their version and install policy (`install`), commands and subagents.
 - Global skills from `~/.claude/skills`.
-- Create a skill, copy one from another project or from the global folder.
+- Create a skill (by default in `.skills/<name>/`, as an index with short files), copy one from another project or from the global folder.
 
 **Working with the AI**
-- Agent-neutral SDD instructions in `.sdd/`, linked from `AGENTS.md` (and `CLAUDE.md` / `GEMINI.md` if present), so Codex, Claude Code, Gemini, Cursor and others write documents the same way. You are not tied to a single agent.
+- Agent-neutral SDD instructions in `.skills/sdd/`, **split into parts**: a short index and one file per topic, so the AI reads only what it needs. Linked from `AGENTS.md`, `CLAUDE.md` and `GEMINI.md` (created if missing), so Codex, Claude Code, Gemini, Cursor and others write documents the same way. You are not tied to a single agent.
+- **Quick decisions** in `.sdd/decisions.md`: the rules you set while talking to the AI ("say X instead of Y", "never…"), one per line and per area, with their own tab to search and add them.
+- **Session status** (`.sdd/status.md`): where the work stands, next steps and blockers, shown in the project. **Project profile** (`.sdd/project.md`) with onboarding the first time, so the AI does not ask again.
+- **Web protection**: `.htaccess` in folders with documents so Apache (XAMPP, hosting) does not serve them.
+- **No secrets in `.md` files**: the app refuses to save passwords, keys or tokens and flags (🔑) any already written; the instructions forbid the AI to write them.
+- **Step-by-step onboarding** (profile, Git, design and existing decisions), also for projects already underway: the AI infers from the code and only asks you to confirm.
+- **Project Git** (`.sdd/git.md`): which name and email commits use and when to push to `origin`, `dev` and `pro` (production only with your explicit authorization).
 - Kit in English or Spanish (picked from the browser language): content, file names and the language the AI answers, writes and speaks in.
 - One-click update for projects with an older kit.
 - Review notices with diffs in `.sdd/review/` for every edit you make, plus an optional Claude Code hook that reminds the AI about them.
@@ -144,10 +152,13 @@ One board per document type, with a column per status of that type. Pick the typ
 | **Design** | UX/UI design decisions, as a list or a board. |
 | **Architecture** | Architecture decisions (ADR), as a list or a board. |
 | **Fixes** | Important fixes, as a list or a board. |
+| **Decisions** | The rules in force from `.sdd/decisions.md` by area, with search and a form to add one, plus the accepted DESs and ADRs. |
 | **Documents** | Every `.md` in the project, grouped by folder. Create a new `.md`, filter and mark as read. |
 | **Skills** | Project skills, commands and subagents, plus your global skills. Create, copy or install skills. |
 | **AI reviews** | Notices pending AI review and the results of the reviewed ones. |
-| **SDD setup** | Kit status in this project, kit installation and registry regeneration. |
+| **SDD setup** | Kit status in this project (instructions, links, project profile, web protection, hook…), kit installation and registry regeneration. |
+
+If the AI has left a `.sdd/status.md`, **Where things stand** appears above the tabs: the last thing done, the next steps and the blockers. The project card on the dashboard shows its first line (or the blocker, if any).
 
 ### Document view
 Header with ID, title, type and a status selector (with the statuses of that type) (asks for an optional note for the history). Side panel with progress (tasks and acceptance criteria separately, for features and fixes), details (including severity for fixes), dependencies and related documents with their status, specs that depend on this one, requirements and history. For multi-file specs (Spec Kit, Kiro, OpenSpec), each file has its own tab.
@@ -159,38 +170,58 @@ Click **Edit** in any document. Source on the left, live preview on the right (t
 Type in the top bar and press `Enter` (or `Ctrl+K` to focus it). Matching specs are shown first, then every document with its matches.
 
 ### Settings
-Interface language, editor for “Open in editor”, your name for new specs, days before an in-progress spec is flagged as stale, AI notifications, history rows, theme, lifecycle statuses per document type (label, color, closed or not), added projects, desktop shortcut and shutdown.
+Interface language, editor for “Open in editor”, your name for new specs, days before an in-progress spec is flagged as stale, AI notifications, web protection for documents, history rows, theme, lifecycle statuses per document type (label, color, closed or not), added projects, desktop shortcut and shutdown.
 
 ## The MD SDD Hub kit
 
-The kit makes **any AI agent** follow the same rules: the instructions live in a neutral place in the project (`.sdd/`) and the files every agent already reads (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`) link to them. You can switch between Codex, Claude Code, Gemini or Cursor on the same project.
+The kit makes **any AI agent** follow the same rules: the instructions live in a neutral place in the project (`.skills/sdd/`) and the files every agent already reads (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`) link to them. You can switch between Codex, Claude Code, Gemini or Cursor on the same project.
+
+The instructions are a **folder-based skill**: `SKILL.md` is a short index with the rules that always apply and a table saying which file to read for each task; the details live in short files the AI opens only when it needs them. Each session uses less context than reading every rule at once.
 
 It is installed when you add a project (“Prepare the project”) or from **Project → SDD setup → Install**. Nothing is deleted; you choose which parts to install.
 
 | File | Purpose |
 |---|---|
-| `.sdd/instructions.md` (en) · `.sdd/instrucciones.md` (es) | The rules, for any AI: language, the four document types and when to create each, where they go, metadata, lifecycles, `AC-NN` / `T-NN` checkboxes, history, registry, the rule to respect `accepted` ADRs and design decisions, and the review procedure. |
-| `.sdd/templates/` (en) · `.sdd/plantillas/` (es) | One template per document type (feature, design, architecture, fix). |
-| Block in `AGENTS.md` (and `CLAUDE.md` / `GEMINI.md` if they exist) | Links to the instructions and tells the AI which language to use. `AGENTS.md` is created if missing; the block goes between `<!-- sdd-hub:start -->` markers and the rest of the file is untouched. |
-| `.claude/skills/sdd-spec/SKILL.md` | Optional, for Claude Code: a short skill that points to the instructions so Claude loads them at the right time. |
+| `.skills/sdd/SKILL.md` | Skill index (`name`, `version`, `install`, `description` frontmatter): language, the rules that always apply, what to do at the start of every session and the file table. |
+| `.skills/sdd/types.md` · `format.md` · `statuses.md` · `implementation.md` · `registry.md` · `recording-decisions.md` · `onboarding.md` · `session.md` · `git.md` · `security.md` · `review.md` | One topic per file: document types, location and format, lifecycles, implementation, registry, quick decisions, step-by-step onboarding, project profile and session status, Git (only when committing, pushing or deploying), security and the review procedure. In Spanish: `tipos.md`, `formato.md`, `estados.md`, `implementacion.md`, `registro.md`, `registrar-decisiones.md`, `onboarding.md`, `sesion.md`, `git.md`, `seguridad.md`, `revision.md`. |
+| `.skills/sdd/templates/` (en) · `.skills/sdd/plantillas/` (es) | One template per document type (feature, design, architecture, fix) plus the profile, status, decisions and Git templates. |
+| Block in `AGENTS.md`, `CLAUDE.md` and `GEMINI.md` | Links to the skill, tells the AI which language to use and what to read at the start of every session. All three are created if missing, because each agent reads its own; the block goes between `<!-- sdd-hub:start -->` markers and the rest of the file is untouched. |
+| `.htaccess` in `.sdd/`, `.skills/`, `.claude/` and `docs/` | Blocks web access (Apache 2.4 and 2.2): hidden folders entirely and `docs/` only for Markdown files. An existing `.htaccess` is never overwritten. |
+| `.claude/skills/sdd-spec/SKILL.md` | Optional, for Claude Code: a short skill that points to `.skills/sdd/` so Claude loads it at the right time. |
 | `.claude/hooks/sdd-review.js` + `.claude/settings.local.json` | Optional, for Claude Code: `UserPromptSubmit` / `SessionStart` hook that tells Claude about your changes pending review. Local settings, not committed. |
 | `.sdd.json` | Manifest: folder of each document type (`dirs`), language, SDD document and feature ID prefix. |
 | `<specs>/000-TEMPLATE.md` | Canonical spec template. |
 | `<specs>/README.md` | Registry with every spec and its status (only if it does not exist). |
+
+### Onboarding
+
+The first time an AI works on a project with the kit, it does a **step-by-step** onboarding: profile, Git, design (if there is an interface) and existing decisions. In each step it first **detects** what it can (in a project already underway, almost everything: stack and commands, remotes and commit style, CSS variables, Tailwind or `theme.json`, fonts, what buttons look like and the tone of the copy, libraries and conventions), **proposes** what it found and asks only for what is missing, one question at a time. Rules go to `.sdd/decisions.md` and, if there is a complete visual system or a technical decision with context, it proposes a DES or an ADR in `proposed` for you to accept. Progress is kept in the profile: once everything is done, the AI does not ask again. To start or finish it, ask: "do the onboarding".
+
+### Project files
+
+`.sdd/` also holds the **project's own** files, which the app never overwrites:
+
+| File | Who writes it | Purpose |
+|---|---|---|
+| `.sdd/project.md` (en) · `.sdd/proyecto.md` (es) | The AI, during onboarding | Project profile: what it is, stack, commands, structure, conventions and the "Onboarding" table with the steps done and pending. Once everything is done, the AI does not ask about the project again. |
+| `.sdd/git.md` | The AI, during onboarding (Git step) | Name and email for commits, `origin` / `dev` / `pro` remotes with their branch and when to push to each one, commit language and format. Production, by default, only with explicit authorization. The AI reads it only when committing, pushing or deploying. |
+| `.sdd/status.md` (en) · `.sdd/estado.md` (es) | The AI, when it finishes each task or session | Where the work stands, next steps and blockers. The AI reads it when it starts; the app shows it in the project. |
+| `.sdd/decisions.md` (en) · `.sdd/decisiones.md` (es) | The AI and you (**Decisions** tab) | Rules in force, one per line and grouped by area: `- YYYY-MM-DD · Rule → DES-004`. Those that need context also have their DES or ADR. |
+| `.sdd/review/` | The app | Review notices for your changes (see [The AI review loop](#the-ai-review-loop)). |
 
 ### Kit language
 
 The kit is installed in **English** or **Spanish**. By default it follows your browser language (you can change it in the dialog). The language decides:
 
 - the content of the instructions, templates, `AGENTS.md` block, review notices and history rows;
-- the file names: `instructions.md` / `templates/` / `review/done/` in English, `instrucciones.md` / `plantillas/` / `review/hecho/` in Spanish, and the document slugs;
+- the file names: `types.md` / `templates/` / `status.md` / `decisions.md` / `review/done/` in English, `tipos.md` / `plantillas/` / `estado.md` / `decisiones.md` / `review/hecho/` in Spanish, and the document slugs;
 - the language the AI must **always answer, write and speak in** (chat, documents, code comments and commits). This rule is in the instructions and in the `AGENTS.md` block, which agents read at the start of every session.
 
 Document folders (`docs/specs`, `docs/design`, `docs/architecture`, `docs/fixes`) are the same in both languages.
 
 ### Updating older kits
 
-Projects with a kit from an older version (for example, the 1.x `.claude/skills/sdd-spec` skill) show a banner with an **Update** button. Updating keeps the kit language, installs the instructions in `.sdd/`, replaces the old `AGENTS.md` block (without duplicating it), adds it to `CLAUDE.md` / `GEMINI.md` if present, and turns the old skill into the short Claude Code entry point.
+Projects with a kit from an older version (for example, the 1.x `.claude/skills/sdd-spec` skill) show a banner with an **Update** button. Updating keeps the kit language, installs the skill in `.skills/sdd/` and removes the previous version's single-file instructions (`.sdd/instructions.md` and `.sdd/templates/`), replaces the old `AGENTS.md` block (without duplicating it) and also writes it to `CLAUDE.md` and `GEMINI.md`, protects the folders with `.htaccess`, and turns the old Claude Code skill into the short entry point.
 
 ## Document types and format
 
@@ -243,13 +274,14 @@ Design and architecture decisions have Context, Decision, Alternatives considere
 
 | Status | Meaning | Who decides |
 |---|---|---|
-| `draft` | Incomplete proposal | AI or person |
-| `review` | Complete, ready for review | AI or person |
-| `approved` | Authorized for implementation | The person only |
-| `in-progress` | Being implemented | AI, when it starts coding |
-| `verified` | All tasks and criteria checked, tests green | AI, with evidence |
-| `released` | Deployed and checked | The person only |
+| `backlog` | To do: idea or incomplete spec, not started | AI or person |
+| `planning` | Being planned: requirements, criteria and tasks | AI or person |
+| `awaiting-approval` | Complete, ready for the person to approve | AI |
+| `in-progress` | In development (moving here is the approval) | The person (the AI only if already approved) |
+| `awaiting-review` | All tasks and criteria checked, tests green | AI, with evidence |
+| `done` | Finished: reviewed and accepted | The person only |
 | `superseded` | Replaced by another spec | AI or person |
+| `cancelled` | Dropped, will not be done | The person only |
 
 **Design and architecture**
 
@@ -271,7 +303,7 @@ Design and architecture decisions have Context, Decision, Alternatives considere
 | `verified` | Fixed, criteria checked, tests green | AI, with evidence |
 | `released` | Fix deployed and checked | The person only |
 
-Statuses can be customized per type in **Settings**. Spanish and English aliases (`borrador`, `en curso`, `done`, `aceptada`, `fixed`…) are recognized when reading.
+Statuses can be customized per type in **Settings**. Spanish and English aliases (`draft`, `borrador`, `en curso`, `done`, `aceptada`, `fixed`…) are recognized when reading.
 
 ### Other formats
 
@@ -290,7 +322,7 @@ When a spec declares no status, it is inferred from its files and checkboxes and
 1. You edit a `.md` from the app (text, status or checkboxes).
 2. The app creates or extends `.sdd/review/<file>.md` with what changed and the diff.
 3. The `AGENTS.md` block tells every agent to check `.sdd/review/` when it starts working. With the hook installed, Claude Code also receives a reminder on your next message. Otherwise, ask your AI: “review the pending changes in .sdd/review”.
-4. The AI follows section 8 of the instructions: reads the diff and the current file, checks consistency with the code and other documents, adjusts the document or tasks, writes a “Review result” section (“Resultado de la revisión” in Spanish) and moves the notice to `.sdd/review/done/` (`hecho/` in Spanish).
+4. The AI follows `.skills/sdd/review.md`: reads the diff and the current file, checks consistency with the code and other documents, adjusts the document or tasks, writes a “Review result” section (“Resultado de la revisión” in Spanish) and moves the notice to `.sdd/review/done/` (`hecho/` in Spanish).
 5. You read its answer in **Project → AI reviews**.
 
 Disable it in **Settings → Notify the AI of my changes**.
@@ -304,7 +336,7 @@ Disable it in **Settings → Notify the AI of my changes**.
 | Stale | Feature `in-progress`, or fix `investigating` / `in-progress`, with no changes for N days (14 by default). |
 | Undecided | Design or architecture decision `proposed` with no changes for N days. |
 | Ready to verify | Feature or fix with all checkboxes done but the status still before `verified`. |
-| Started | Some checkboxes done while the feature is still `draft`, `review` or `approved` (or the fix `reported` / `investigating`). |
+| Started | Some checkboxes done while the feature is still `backlog`, `planning`, `awaiting-approval` or `in-progress` (or the fix `reported` / `investigating`). |
 | Pending checkboxes | `verified` or `released` with unchecked boxes. |
 | Registry mismatch | The status in the specs `README.md` differs from the spec. |
 | Missing dependency | Depends on or relates to an ID (`SPEC-`, `DES-`, `ADR-`, `FIX-`…) that does not exist. |
@@ -338,13 +370,14 @@ lib/md-parse.js    Markdown parsing: metadata, status, checkboxes, requirements,
 lib/scan.js        Scanning of projects, specs, documents, skills, reviews and alerts
 lib/write.js       Writes: status, checkboxes, new specs, registry, kit, review notices
 lib/diff.js        Line diff for review notices
+lib/secrets.js     secret detection (passwords, keys, tokens) in Markdown
 lib/i18n.js        Server texts (errors and alerts in es/en; .md texts in Spanish)
 public/index.html  Page shell
 public/app.js      UI (routing, views, dialogs, auto-refresh)
 public/i18n.js     English translation of the UI (keys are the Spanish source strings)
 public/md.js       Markdown renderer (keeps line numbers so checkboxes can be edited)
 public/styles.css  Styles with light/dark themes
-kit/es/, kit/en/    kit installed into projects: instructions, templates and Claude Code entry point, per language
+kit/es/, kit/en/   kit installed into projects, per language: skill/ (copied to .skills/sdd/: index, topic files and templates) and the Claude Code entry point
 kit/hook/          Claude Code review hook (bilingual)
 tools/             make-icon.js (builds the icon), i18n-check.js (checks translations)
 lanzar.vbs         Windowless launcher used by the desktop shortcut
@@ -361,7 +394,8 @@ Main API endpoints (all under `/api`, JSON):
 | `GET /activity`, `GET /search?q=` | `.md` change feed and full-text search. |
 | `POST /file/save`, `POST /file/new` | Edit or create a `.md`. |
 | `POST /spec/status`, `POST /spec/check`, `POST /spec/new` | Change status, tick a checkbox, create a document (`type`: `feature`, `design`, `architecture`, `fix`). |
-| `POST /install`, `POST /registry` | Install the kit, create or regenerate a type registry (`type`). |
+| `POST /install`, `POST /registry`, `POST /protect` | Install the kit, create or regenerate a type registry (`type`), create any missing `.htaccess`. |
+| `POST /decisions/add` | Add a decision to `.sdd/decisions.md` (`area`, `text`, `ref`). |
 | `POST /projects/add`, `/remove`, `/update`, `POST /discover` | Manage folders and scan for projects. |
 | `POST /settings`, `POST /shortcut`, `POST /shutdown` | Settings, desktop shortcut, stop the server. |
 
@@ -370,7 +404,10 @@ Main API endpoints (all under `/api`, JSON):
 - Listens only on `127.0.0.1`; nothing is reachable from other machines.
 - Rejects requests whose `Host` is not local (DNS-rebinding protection).
 - Write requests require a custom header (CSRF protection).
-- Only Markdown files inside folders you added can be edited; paths outside them are rejected.
+- Only Markdown files inside folders you added can be edited; paths outside them are rejected. The only non-Markdown files the app writes are the kit files (hook, `.sdd.json`) and the `.htaccess` files.
+- Project folders with documents get an `.htaccess` that blocks web access, so Apache (XAMPP, shared hosting) does not serve specs, decisions or review notices. On Nginx, block those paths in the server configuration.
+- **Never secrets in `.md` files.** The app refuses to save text containing something that looks like a password, API key, token, private key or connection string with credentials, and reports the line; example placeholders (`<your-key>`, `${DB_PASSWORD}`) and variable names are allowed. It also checks the `.md` files already written (for example, by an AI) and flags them with 🔑. The kit forbids the AI to write them and tells it what to do if it finds one: remove it and say it must be rotated, because it is still in the git history.
+- Production, by default, **only with explicit authorization**: the kit tells the AI not to push to `pro` without your "yes" for that specific push and never to use `--force`.
 - No telemetry and no external requests: the app works offline.
 
 ## Troubleshooting
@@ -382,8 +419,12 @@ Main API endpoints (all under `/api`, JSON):
 | “Open in editor” does nothing | Choose your editor in **Settings**, or type its command (e.g. `cursor`, `code`). |
 | A spec has no status or a wrong one | Check the status cell uses one of the configured IDs in backticks, e.g. `` `in-progress` ``. |
 | The AI does not review my changes | Check that the `AGENTS.md` link is installed (**SDD setup**); in Claude Code you can also install the hook. Or ask it explicitly to review `.sdd/review/`. |
-| The AI answers in the wrong language | The language rule is in `.sdd/instructions.md` and in the `AGENTS.md` block. Reinstall the kit with the right language from **SDD setup**. |
+| The AI answers in the wrong language | The language rule is in `.skills/sdd/SKILL.md` and in the `AGENTS.md` block. Reinstall the kit with the right language from **SDD setup**. |
 | An older project shows “SDD ↑” | Its kit is from an older version: open the project and click **Update**. |
+| The `.md` files can be opened from a browser | Click **Protect** in **SDD setup**. If it still returns 200, Apache is ignoring `.htaccess` files (`AllowOverride None`) or the server is Nginx: block the paths in its configuration. |
+| The AI asks about the project again every session | `.sdd/project.md` is missing or its "Onboarding" table has pending steps (**SDD setup** shows them): ask it to finish the onboarding. |
+| "Not saved: it looks like there is a password, key or token" | The text has something that looks like a secret on the reported line. Write only the variable name (`DB_PASSWORD` in `.env`) or a placeholder (`<your-key>`). |
+| 🔑 shows up on a project | A `.md` contains a possible secret: remove it and, if it was already pushed to git, rotate that key. |
 | A file in `docs/architecture` is not listed as an ADR | Only files with an ID in their name (`ADR-001-…`, `0001-…`) are treated as decisions; rename it or create it from the app. |
 | A third-party plugin appears as a project | Scanning leaves folders with only `AGENTS.md` or `.git` unchecked; uncheck any others you do not want. |
 
@@ -396,7 +437,7 @@ MD SDD Hub uses [semantic versioning](https://semver.org): `MAJOR.MINOR.PATCH`.
 1. Bump `version` in `package.json`.
 2. Add the version, date and changes to [`CHANGELOG.md`](CHANGELOG.md) and [`CHANGELOG.es.md`](CHANGELOG.es.md).
 3. Update this README and [`README.es.md`](README.es.md) with every new or changed feature, and the “Current version” line at the top.
-4. If the kit changes (`kit/`), bump `KIT_VERSION` in `lib/scan.js` and the `sdd-hub vN` marker in `kit/es/instrucciones.md`, `kit/en/instructions.md` and both `claude-skill.md`, and keep the Spanish and English kits in sync.
+4. If the kit changes (`kit/`), bump `KIT_VERSION` in `lib/scan.js` and the version (`version:` and the `sdd-hub vN` marker) of `kit/es/skill/SKILL.md`, `kit/en/skill/SKILL.md` and both `claude-skill.md`, and keep the Spanish and English kits in sync.
 5. Commit and tag the release as `vX.Y.Z`.
 
 The same checklist is in [`AGENTS.md`](AGENTS.md), so AI agents working on this repository follow it too. The current version is shown in the app sidebar and in **Settings**.

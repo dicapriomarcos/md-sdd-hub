@@ -28,6 +28,7 @@ const DEFAULT_SETTINGS = {
   editor: 'auto',
   appendHistory: true,
   reviewLog: true,
+  protectWeb: true, // .htaccess que bloquea el acceso web a las carpetas con documentos
   author: '',
   theme: 'auto',
   lang: '', // '' = automático (idioma del navegador); 'es' o 'en' si se elige a mano
@@ -283,6 +284,17 @@ const routes = {
       config.projects = b.order.map((id) => map.get(id)).filter(Boolean).concat(config.projects.filter((x) => !b.order.includes(x.id)));
     }
     if (b.pinned != null) p.pinned = !!b.pinned;
+    // estados del flujo que este proyecto no usa (p. ej. «planning»); el resto de proyectos no cambia
+    if (b.hiddenStatuses && typeof b.hiddenStatuses === 'object') {
+      const out = {};
+      for (const [type, list] of Object.entries(b.hiddenStatuses)) {
+        const def = typeDef(type);
+        const ids = (Array.isArray(list) ? list : []).filter((id, i, a) => a.indexOf(id) === i && def.statuses.some((x) => x.id === id && !x.closed) && def.statuses[0].id !== id);
+        if (ids.length) out[type] = ids;
+      }
+      if (Object.keys(out).length) p.hiddenStatuses = out; else delete p.hiddenStatuses;
+      W.saveSkipStatuses(p.path, p.hiddenStatuses || {});
+    }
     saveConfig(); invalidate();
     return { project: p };
   },
@@ -380,16 +392,34 @@ const routes = {
       src = path.join(os.homedir(), '.claude', 'skills', path.basename(String(b.dir)));
     } else {
       const from = project(b.fromId);
-      src = W.resolveIn(from.path, path.posix.join(b.base || '.claude', 'skills', b.dir));
+      const base = b.base === '.skills' ? '.skills' : path.posix.join(b.base || '.claude', 'skills');
+      src = W.resolveIn(from.path, path.posix.join(base, b.dir));
     }
-    const rel = W.copySkill(src, p.path, path.basename(b.dir));
+    // se copia a la misma carpeta de la que viene (las globales de ~/.claude/skills, a .claude/skills)
+    const rel = W.copySkill(src, p.path, path.basename(b.dir), b.scope === 'global' ? '.claude' : (b.base || '.claude'), wset());
     invalidate();
     return { rel };
   },
 
+  'POST /api/decisions/add': (b) => {
+    const p = project(b.id);
+    const r = W.addDecision(p.path, b.area, b.text, b.ref, wset());
+    markSeen(W.resolveIn(p.path, r.rel));
+    invalidate();
+    return r;
+  },
+
+  'POST /api/protect': (b) => {
+    const p = project(b.id);
+    const scan = scanOne(p, false);
+    const done = W.installKit(p.path, scan, { protect: true, lang: scan.compat.kitLang || undefined }, p, wset());
+    invalidate();
+    return { done };
+  },
+
   'POST /api/skills/new': (b) => {
     const p = project(b.id);
-    const rel = W.newSkill(p.path, String(b.name || '').trim() || 'new-skill', b.description, wset());
+    const rel = W.newSkill(p.path, String(b.name || '').trim() || 'new-skill', b.description, wset(), b.base);
     invalidate();
     return { rel };
   },
@@ -430,7 +460,7 @@ const routes = {
   },
 
   'POST /api/settings': (b) => {
-    const allowed = ['staleDays', 'editor', 'appendHistory', 'reviewLog', 'author', 'theme', 'lang'];
+    const allowed = ['staleDays', 'editor', 'appendHistory', 'reviewLog', 'protectWeb', 'author', 'theme', 'lang'];
     for (const k of allowed) if (k in b) config.settings[k] = b[k];
     // estados de un tipo: { statusesType: 'fix', statuses: [...] } · restaurar: { resetStatuses: 'fix' }
     if (b.statusesType && Array.isArray(b.statuses)) {

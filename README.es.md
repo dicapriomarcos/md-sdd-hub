@@ -54,6 +54,8 @@ MD SDD Hub te da un único sitio para:
 - Tableros kanban por estado, por proyecto o de todos los proyectos; al arrastrar una tarjeta se edita el `.md`.
 - Al cambiar el estado desde la app se actualizan la celda de estado, la fecha «Actualizada», la tabla de historial y el registro de la carpeta.
 - Casillas clicables: al marcar una se edita el `.md`.
+- **Copiar tarea** (⧉ junto a cada casilla): copia la tarea con su descripción, estado y contexto de la spec, lista para pegar en el chat de cualquier IA y que siga trabajando.
+- **Copiar instrucción de una spec**: adapta el mensaje al estado. En planificación, pide completar el documento y pasarlo a Esperando aprobación; en desarrollo, pide implementar y pasar a Esperando revisión con tareas, criterios y pruebas completos. Copiar una tarea respeta el mismo flujo.
 - «Nuevo documento» con selector de tipo: se crea en la carpeta del tipo con el siguiente ID libre, a partir de la plantilla del proyecto o de la skill.
 - Creación y regeneración del registro de cada tipo (`README.md` de cada carpeta).
 
@@ -65,12 +67,18 @@ MD SDD Hub te da un único sitio para:
 - Búsqueda de texto en todos los proyectos (`Ctrl+K`).
 
 **Skills**
-- Skills del proyecto (`.claude/skills`, `.agents/skills`, `.codex/skills`, `.gemini/skills`, `.cursor/skills`), comandos y subagentes.
+- Skills del proyecto (`.skills`, `.claude/skills`, `.agents/skills`, `.codex/skills`, `.gemini/skills`, `.cursor/skills`), con su versión y su política de instalación (`install`), comandos y subagentes.
 - Skills globales de `~/.claude/skills`.
-- Crear una skill, copiarla de otro proyecto o de la carpeta global.
+- Crear una skill (por defecto en `.skills/<nombre>/`, como índice con archivos cortos), copiarla de otro proyecto o de la carpeta global.
 
 **Trabajo con la IA**
-- Instrucciones SDD neutras en `.sdd/`, enlazadas desde `AGENTS.md` (y desde `CLAUDE.md` / `GEMINI.md` si existen), para que Codex, Claude Code, Gemini, Cursor y otros escriban los documentos igual. No te ata a un solo agente.
+- Instrucciones SDD neutras en `.skills/sdd/`, **por partes**: un índice corto y un archivo por tema, para que la IA lea solo lo que necesita. Enlazadas desde `AGENTS.md`, `CLAUDE.md` y `GEMINI.md` (se crean si no existen), para que Codex, Claude Code, Gemini, Cursor y otros escriban los documentos igual. No te ata a un solo agente.
+- **Decisiones rápidas** en `.sdd/decisiones.md`: las normas que fijas al hablar con la IA («di X en vez de Y», «nunca…»), una por línea y por área, con su pestaña para buscarlas y añadirlas.
+- **Estado de la sesión** (`.sdd/estado.md`): dónde quedó el trabajo, siguientes pasos y bloqueos, visible en el proyecto. **Ficha del proyecto** (`.sdd/proyecto.md`) con onboarding la primera vez, para que la IA no vuelva a preguntar.
+- **Protección web**: `.htaccess` en las carpetas con documentos para que Apache (XAMPP, hosting) no los sirva.
+- **Sin secretos en los `.md`**: la app se niega a guardar contraseñas, claves o tokens y avisa (🔑) de los que ya estén escritos; las instrucciones prohíben a la IA escribirlos.
+- **Onboarding por pasos** (ficha, Git, diseño y decisiones existentes), también para proyectos ya empezados: la IA deduce del código y solo te pide confirmar.
+- **Git del proyecto** (`.sdd/git.md`): con qué nombre y email se commitea y cuándo se sube a `origin`, `dev` y `pro` (producción solo con tu autorización expresa).
 - Kit en español o en inglés (según el idioma del navegador): contenido, nombres de archivo e idioma en el que la IA responde, escribe y habla.
 - Actualización con un clic de los proyectos con un kit antiguo.
 - Avisos de revisión con diff en `.sdd/review/` por cada edición que hagas, y un hook opcional de Claude Code que se los recuerda a la IA.
@@ -144,10 +152,13 @@ Un tablero por tipo de documento, con una columna por cada estado de ese tipo. E
 | **Diseño** | Decisiones de diseño UX/UI, en lista o tablero. |
 | **Arquitectura** | Decisiones de arquitectura (ADR), en lista o tablero. |
 | **Fixes** | Correcciones importantes, en lista o tablero. |
+| **Decisiones** | Las reglas vigentes de `.sdd/decisiones.md` por área, con buscador y formulario para añadir una, y los DES y ADR aceptados. |
 | **Documentos** | Todos los `.md` del proyecto agrupados por carpeta. Crear un `.md` nuevo, filtrar y marcar como leído. |
 | **Skills** | Skills, comandos y subagentes del proyecto, además de tus skills globales. Crear, copiar o instalar skills. |
 | **Revisiones IA** | Avisos pendientes de revisión por la IA y los resultados de los ya revisados. |
-| **Configurar SDD** | Estado del kit en este proyecto, instalación del kit y regeneración del registro. |
+| **Configurar SDD** | Estado del kit en este proyecto (instrucciones, enlaces, ficha del proyecto, protección web, hook…), instalación del kit y regeneración del registro. |
+
+Si la IA ha dejado `.sdd/estado.md`, encima de las pestañas aparece **Dónde quedó**: lo último que se hizo, los siguientes pasos y los bloqueos. La tarjeta del proyecto en el panel muestra la primera línea (o el bloqueo, si lo hay).
 
 ### Vista de un documento
 Cabecera con ID, título, tipo y selector de estado (con los estados de ese tipo) (pide una nota opcional para el historial). Panel lateral con el progreso (tareas y criterios por separado, en features y fixes), datos (incluida la gravedad de los fixes), dependencias y documentos relacionados con su estado, specs que dependen de esta, requisitos e historial. Las specs de varios archivos (Spec Kit, Kiro, OpenSpec) muestran una pestaña por archivo.
@@ -159,38 +170,58 @@ Pulsa **Editar** en cualquier documento. Código a la izquierda y vista previa e
 Escribe en la barra superior y pulsa `Enter` (o `Ctrl+K` para ir a ella). Primero salen las specs que coinciden y después cada documento con sus coincidencias.
 
 ### Ajustes
-Idioma de la interfaz, editor para «Abrir en editor», tu nombre para las specs nuevas, días para marcar una spec en curso como estancada, avisos a la IA, filas de historial, tema, estados del ciclo de vida de cada tipo de documento (etiqueta, color, cerrado o no), proyectos agregados, acceso directo y apagado.
+Idioma de la interfaz, editor para «Abrir en editor», tu nombre para las specs nuevas, días para marcar una spec en curso como estancada, avisos a la IA, protección web de los documentos, filas de historial, tema, estados del ciclo de vida de cada tipo de documento (etiqueta, color, cerrado o no), proyectos agregados, acceso directo y apagado.
 
 ## El kit MD SDD Hub
 
-El kit hace que **cualquier agente de IA** siga las mismas reglas: las instrucciones viven en un sitio neutro del proyecto (`.sdd/`) y los archivos que cada agente ya lee (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`) las enlazan. Puedes alternar Codex, Claude Code, Gemini o Cursor en el mismo proyecto.
+El kit hace que **cualquier agente de IA** siga las mismas reglas: las instrucciones viven en un sitio neutro del proyecto (`.skills/sdd/`) y los archivos que cada agente ya lee (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`) las enlazan. Puedes alternar Codex, Claude Code, Gemini o Cursor en el mismo proyecto.
+
+Las instrucciones son una **skill por carpetas**: `SKILL.md` es un índice corto con las reglas que valen siempre y una tabla que dice qué archivo leer para cada tarea; el detalle va en archivos cortos que la IA abre solo cuando los necesita. Así cada sesión gasta menos contexto que leyendo todas las reglas de golpe.
 
 Se instala al agregar un proyecto («Preparar el proyecto») o desde **Proyecto → Configurar SDD → Instalar**. No se borra nada; eliges qué partes instalar.
 
 | Archivo | Para qué |
 |---|---|
-| `.sdd/instrucciones.md` (es) · `.sdd/instructions.md` (en) | Las reglas, para cualquier IA: idioma, los cuatro tipos de documento y cuándo crear cada uno, dónde van, metadatos, ciclos de estados, casillas `AC-NN` / `T-NN`, historial, registro, la regla de respetar los ADR y las decisiones de diseño `accepted`, y el procedimiento de revisión. |
-| `.sdd/plantillas/` (es) · `.sdd/templates/` (en) | Una plantilla por tipo de documento (feature, diseño, arquitectura, fix). |
-| Bloque en `AGENTS.md` (y en `CLAUDE.md` / `GEMINI.md` si existen) | Enlaza las instrucciones e indica a la IA en qué idioma trabajar. `AGENTS.md` se crea si no existe; el bloque va entre marcas `<!-- sdd-hub:start -->` y el resto del archivo no se toca. |
-| `.claude/skills/sdd-spec/SKILL.md` | Opcional, para Claude Code: una skill corta que remite a las instrucciones para que Claude las cargue en el momento adecuado. |
+| `.skills/sdd/SKILL.md` | Índice de la skill (frontmatter `name`, `version`, `install`, `description`): idioma, las reglas que valen siempre, qué hacer al empezar cada sesión y la tabla de archivos. |
+| `.skills/sdd/tipos.md` · `formato.md` · `estados.md` · `implementacion.md` · `registro.md` · `registrar-decisiones.md` · `onboarding.md` · `sesion.md` · `git.md` · `seguridad.md` · `revision.md` | Un tema por archivo: tipos de documento, ubicación y formato, ciclos de estados, implementación, registro, decisiones rápidas, onboarding por pasos, ficha y estado de la sesión, Git (solo al hacer commit, push o desplegar), seguridad y procedimiento de revisión. En inglés: `types.md`, `format.md`, `statuses.md`, `implementation.md`, `registry.md`, `recording-decisions.md`, `onboarding.md`, `session.md`, `git.md`, `security.md`, `review.md`. |
+| `.skills/sdd/plantillas/` (es) · `.skills/sdd/templates/` (en) | Una plantilla por tipo de documento (feature, diseño, arquitectura, fix) y las de la ficha, el estado, las decisiones y Git. |
+| Bloque en `AGENTS.md`, `CLAUDE.md` y `GEMINI.md` | Enlaza la skill, indica a la IA en qué idioma trabajar y qué leer al empezar cada sesión. Los tres se crean si no existen, porque cada agente lee el suyo; el bloque va entre marcas `<!-- sdd-hub:start -->` y el resto del archivo no se toca. |
+| `.htaccess` en `.sdd/`, `.skills/`, `.claude/` y `docs/` | Bloquea el acceso web (Apache 2.4 y 2.2): las carpetas ocultas enteras y `docs/` solo para los Markdown. No se pisa un `.htaccess` que ya exista. |
+| `.claude/skills/sdd-spec/SKILL.md` | Opcional, para Claude Code: una skill corta que remite a `.skills/sdd/` para que Claude la cargue en el momento adecuado. |
 | `.claude/hooks/sdd-review.js` + `.claude/settings.local.json` | Opcional, para Claude Code: hook `UserPromptSubmit` / `SessionStart` que le avisa de tus cambios pendientes de revisión. Ajustes locales, no se suben a git. |
 | `.sdd.json` | Manifiesto: carpeta de cada tipo de documento (`dirs`), idioma, documento SDD y prefijo de ID de las features. |
 | `<specs>/000-TEMPLATE.md` | Plantilla canónica de spec. |
 | `<specs>/README.md` | Registro con todas las specs y su estado (solo si no existe). |
+
+### Onboarding
+
+La primera vez que una IA trabaja en un proyecto con el kit, hace un onboarding **por pasos**: ficha, Git, diseño (si hay interfaz) y decisiones que ya existen. En cada paso primero **detecta** lo que puede (en un proyecto ya empezado, casi todo: stack y comandos, remotes y estilo de los commits, variables CSS, Tailwind o `theme.json`, fuentes, cómo son los botones y el tono de los textos, librerías y convenciones), te **propone** lo que ha encontrado y solo pregunta lo que falta, de una en una. Las reglas van a `.sdd/decisiones.md` y, si hay un sistema visual completo o una decisión técnica con contexto, propone un DES o un ADR en `proposed` para que lo aceptes. El progreso queda en la ficha: cuando todo está hecho, la IA no vuelve a preguntar. Para empezarlo o terminarlo, pídeselo: «haz el onboarding».
+
+### Archivos del proyecto
+
+Además, en `.sdd/` viven los archivos **del proyecto**, que la app nunca sobrescribe:
+
+| Archivo | Quién lo escribe | Para qué |
+|---|---|---|
+| `.sdd/proyecto.md` (es) · `.sdd/project.md` (en) | La IA, en el onboarding | Ficha del proyecto: qué es, stack, comandos, estructura, convenciones y la tabla «Onboarding» con los pasos hechos y pendientes. Si todo está hecho, la IA no vuelve a preguntar por el proyecto. |
+| `.sdd/git.md` | La IA, en el onboarding (paso Git) | Nombre y email para los commits, remotes `origin` / `dev` / `pro` con su rama y cuándo se sube a cada uno, idioma y formato de los commits. Producción, por defecto, solo con autorización expresa. La IA solo lo lee al hacer commit, push o desplegar. |
+| `.sdd/estado.md` (es) · `.sdd/status.md` (en) | La IA, al terminar cada tarea o sesión | Dónde quedó el trabajo, siguientes pasos y bloqueos. La IA lo lee al empezar; la app lo muestra en el proyecto. |
+| `.sdd/decisiones.md` (es) · `.sdd/decisions.md` (en) | La IA y tú (pestaña **Decisiones**) | Reglas vigentes, una por línea y agrupadas por área: `- AAAA-MM-DD · Regla → DES-004`. Las que necesitan contexto tienen además su DES o ADR. |
+| `.sdd/review/` | La app | Avisos de revisión de tus cambios (ver [Bucle de revisión](#bucle-de-revisión-con-la-ia)). |
 
 ### Idioma del kit
 
 El kit se instala en **español** o en **inglés**. Por defecto sigue el idioma de tu navegador (puedes cambiarlo en el diálogo). El idioma decide:
 
 - el contenido de las instrucciones, las plantillas, el bloque de `AGENTS.md`, los avisos de revisión y las filas de historial;
-- los nombres de archivo: `instrucciones.md` / `plantillas/` / `review/hecho/` en español, `instructions.md` / `templates/` / `review/done/` en inglés, y los slugs de los documentos;
+- los nombres de archivo: `tipos.md` / `plantillas/` / `estado.md` / `decisiones.md` / `review/hecho/` en español, `types.md` / `templates/` / `status.md` / `decisions.md` / `review/done/` en inglés, y los slugs de los documentos;
 - el idioma en el que la IA debe **responder, escribir y hablar siempre** (chat, documentos, comentarios de código y commits). La regla está en las instrucciones y en el bloque de `AGENTS.md`, que los agentes leen al empezar cada sesión.
 
 Las carpetas de documentos (`docs/specs`, `docs/design`, `docs/architecture`, `docs/fixes`) son las mismas en los dos idiomas.
 
 ### Actualizar kits antiguos
 
-Los proyectos con un kit de una versión anterior (por ejemplo, la skill `.claude/skills/sdd-spec` de la 1.x) muestran un aviso con un botón **Actualizar**. Al actualizar se conserva el idioma del kit, se instalan las instrucciones en `.sdd/`, se sustituye el bloque antiguo de `AGENTS.md` (sin duplicarlo), se añade a `CLAUDE.md` / `GEMINI.md` si existen y la skill antigua pasa a ser el acceso corto para Claude Code.
+Los proyectos con un kit de una versión anterior (por ejemplo, la skill `.claude/skills/sdd-spec` de la 1.x) muestran un aviso con un botón **Actualizar**. Al actualizar se conserva el idioma del kit, se instala la skill en `.skills/sdd/` y se retiran las instrucciones de un solo archivo de la versión anterior (`.sdd/instrucciones.md` y `.sdd/plantillas/`), se sustituye el bloque antiguo de `AGENTS.md` (sin duplicarlo) y se escribe también en `CLAUDE.md` y `GEMINI.md`, se protegen las carpetas con `.htaccess` y la skill antigua de Claude Code pasa a ser el acceso corto.
 
 ## Tipos de documento y formato
 
@@ -243,13 +274,14 @@ Las decisiones de diseño y de arquitectura tienen Contexto, Decisión, Alternat
 
 | Estado | Significado | Quién lo decide |
 |---|---|---|
-| `draft` | Propuesta incompleta | IA o persona |
-| `review` | Completa, lista para revisar | IA o persona |
-| `approved` | Autorizada para implementar | Solo la persona |
-| `in-progress` | En implementación | IA, al empezar a programar |
-| `verified` | Tareas y criterios marcados, pruebas en verde | IA, con evidencia |
-| `released` | Desplegada y comprobada | Solo la persona |
+| `backlog` | Por hacer: idea o spec incompleta, sin empezar | IA o persona |
+| `planning` | En planificación: requisitos, criterios y tareas | IA o persona |
+| `awaiting-approval` | Completa, lista para que la persona la apruebe | IA |
+| `in-progress` | En desarrollo (pasar aquí es la aprobación) | La persona (la IA solo si ya estaba aprobada) |
+| `awaiting-review` | Todas las tareas y criterios marcados, pruebas en verde | IA, con evidencia |
+| `done` | Finalizado: revisado y dado por bueno | Solo la persona |
 | `superseded` | Sustituida por otra spec | IA o persona |
+| `cancelled` | Descartada, no se hará | Solo la persona |
 
 **Diseño y arquitectura**
 
@@ -271,7 +303,7 @@ Las decisiones de diseño y de arquitectura tienen Contexto, Decisión, Alternat
 | `verified` | Corregido, criterios marcados, tests en verde | IA, con evidencia |
 | `released` | Corrección desplegada y comprobada | Solo la persona |
 
-Los estados de cada tipo se pueden personalizar en **Ajustes**. Al leer se reconocen alias en español e inglés (`borrador`, `en curso`, `done`, `aceptada`, `fixed`…).
+Los estados de cada tipo se pueden personalizar en **Ajustes**. Al leer se reconocen alias en español e inglés (`draft`, `borrador`, `en curso`, `done`, `aceptada`, `fixed`…).
 
 ### Otros formatos
 
@@ -290,7 +322,7 @@ Si una spec no declara estado, se deduce de sus archivos y casillas y se muestra
 1. Editas un `.md` desde la app (texto, estado o casillas).
 2. La app crea o amplía `.sdd/review/<archivo>.md` con qué ha cambiado y el diff.
 3. El bloque de `AGENTS.md` indica a todos los agentes que revisen `.sdd/review/` al empezar a trabajar. Con el hook instalado, Claude Code recibe además un recordatorio en tu siguiente mensaje. Si no, pídeselo a tu IA: «revisa los cambios pendientes de .sdd/review».
-4. La IA sigue la sección 8 de las instrucciones: lee el diff y el archivo actual, comprueba la coherencia con el código y otros documentos, ajusta el documento o las tareas, escribe una sección «Resultado de la revisión» («Review result» en inglés) y mueve el aviso a `.sdd/review/hecho/` (`done/` en inglés).
+4. La IA sigue `.skills/sdd/revision.md`: lee el diff y el archivo actual, comprueba la coherencia con el código y otros documentos, ajusta el documento o las tareas, escribe una sección «Resultado de la revisión» («Review result» en inglés) y mueve el aviso a `.sdd/review/hecho/` (`done/` en inglés).
 5. Lees su respuesta en **Proyecto → Revisiones IA**.
 
 Se desactiva en **Ajustes → Avisar a la IA de mis cambios**.
@@ -304,7 +336,7 @@ Se desactiva en **Ajustes → Avisar a la IA de mis cambios**.
 | Estancada | Feature `in-progress`, o fix `investigating` / `in-progress`, sin cambios desde hace N días (14 por defecto). |
 | Sin decidir | Decisión de diseño o arquitectura `proposed` sin cambios desde hace N días. |
 | Lista para verificar | Feature o fix con todas las casillas marcadas pero con el estado todavía antes de `verified`. |
-| Empezada | Hay casillas marcadas y la feature sigue en `draft`, `review` o `approved` (o el fix en `reported` / `investigating`). |
+| Empezada | Hay casillas marcadas y la feature sigue en `backlog`, `planning`, `awaiting-approval` o `in-progress` (o el fix en `reported` / `investigating`). |
 | Casillas pendientes | `verified` o `released` con casillas sin marcar. |
 | Registro desincronizado | El estado del `README.md` de specs no coincide con la spec. |
 | Dependencia inexistente | Depende de, o se relaciona con, un ID (`SPEC-`, `DES-`, `ADR-`, `FIX-`…) que no existe. |
@@ -338,13 +370,14 @@ lib/md-parse.js    análisis de Markdown: metadatos, estado, casillas, requisito
 lib/scan.js        escaneo de proyectos, specs, documentos, skills, revisiones y alertas
 lib/write.js       escrituras: estado, casillas, nuevas specs, registro, kit, avisos de revisión
 lib/diff.js        diff de líneas para los avisos de revisión
+lib/secrets.js     detección de secretos (contraseñas, claves, tokens) en Markdown
 lib/i18n.js        textos del servidor (errores y alertas en es/en; textos de los .md en español)
 public/index.html  estructura de la página
 public/app.js      interfaz (rutas, vistas, diálogos, refresco automático)
 public/i18n.js     traducción de la interfaz al inglés (la clave es el texto en español)
 public/md.js       renderizador de Markdown (conserva los números de línea para editar casillas)
 public/styles.css  estilos con tema claro y oscuro
-kit/es/, kit/en/    kit que se instala en los proyectos: instrucciones, plantillas y acceso para Claude Code, por idioma
+kit/es/, kit/en/   kit que se instala en los proyectos, por idioma: skill/ (se copia a .skills/sdd/: índice, archivos por tema y plantillas) y el acceso para Claude Code
 kit/hook/          hook de revisión para Claude Code (bilingüe)
 tools/             make-icon.js (genera el icono), i18n-check.js (comprueba las traducciones)
 lanzar.vbs         lanzador sin ventana que usa el acceso directo
@@ -361,7 +394,8 @@ Principales rutas de la API (todas bajo `/api`, en JSON):
 | `GET /activity`, `GET /search?q=` | Cambios en `.md` y búsqueda de texto. |
 | `POST /file/save`, `POST /file/new` | Editar o crear un `.md`. |
 | `POST /spec/status`, `POST /spec/check`, `POST /spec/new` | Cambiar estado, marcar una casilla, crear un documento (`type`: `feature`, `design`, `architecture`, `fix`). |
-| `POST /install`, `POST /registry` | Instalar el kit, crear o regenerar el registro de un tipo (`type`). |
+| `POST /install`, `POST /registry`, `POST /protect` | Instalar el kit, crear o regenerar el registro de un tipo (`type`), crear los `.htaccess` que falten. |
+| `POST /decisions/add` | Añadir una decisión a `.sdd/decisiones.md` (`area`, `text`, `ref`). |
 | `POST /projects/add`, `/remove`, `/update`, `POST /discover` | Gestionar carpetas y buscar proyectos. |
 | `POST /settings`, `POST /shortcut`, `POST /shutdown` | Ajustes, acceso directo, parar el servidor. |
 
@@ -370,7 +404,10 @@ Principales rutas de la API (todas bajo `/api`, en JSON):
 - Solo escucha en `127.0.0.1`; nada es accesible desde otros equipos.
 - Rechaza las peticiones cuyo `Host` no es local (protección frente a DNS rebinding).
 - Las peticiones de escritura exigen una cabecera propia (protección CSRF).
-- Solo se pueden editar archivos Markdown dentro de los proyectos agregados; cualquier ruta fuera de ellas se rechaza.
+- Solo se pueden editar archivos Markdown dentro de los proyectos agregados; cualquier ruta fuera de ellas se rechaza. Los únicos archivos que no son Markdown que escribe la app son los del kit (hook, `.sdd.json`) y los `.htaccess`.
+- Las carpetas con documentos de los proyectos llevan un `.htaccess` que bloquea el acceso web, para que Apache (XAMPP, hosting compartido) no sirva specs, decisiones ni avisos de revisión. En Nginx hay que bloquear esas rutas en la configuración del servidor.
+- **Nunca secretos en los `.md`.** La app se niega a guardar un texto con algo que parezca una contraseña, clave de API, token, clave privada o cadena de conexión con credenciales, e indica la línea; los marcadores de ejemplo (`<tu-clave>`, `${DB_PASSWORD}`) y los nombres de variable sí se permiten. También revisa los `.md` ya escritos (por ejemplo, por una IA) y avisa con 🔑. El kit le prohíbe a la IA escribirlos y le dice qué hacer si encuentra uno: quitarlo y avisar de que hay que rotarlo, porque sigue en el historial de git.
+- Producción, por defecto, **solo con autorización expresa**: el kit le indica a la IA que no suba a `pro` sin tu «sí» para ese push concreto ni use `--force`.
 - Sin telemetría ni peticiones externas: la app funciona sin conexión.
 
 ## Solución de problemas
@@ -382,8 +419,12 @@ Principales rutas de la API (todas bajo `/api`, en JSON):
 | «Abrir en editor» no hace nada | Elige tu editor en **Ajustes** o escribe su comando (por ejemplo `cursor` o `code`). |
 | Una spec no tiene estado o tiene uno incorrecto | Revisa que la celda de estado use uno de los ID configurados entre comillas invertidas, por ejemplo `` `in-progress` ``. |
 | La IA no revisa mis cambios | Comprueba en **Configurar SDD** que el enlace de `AGENTS.md` está instalado; en Claude Code también puedes instalar el hook. O pídele explícitamente que revise `.sdd/review/`. |
-| La IA responde en otro idioma | La regla de idioma está en `.sdd/instrucciones.md` y en el bloque de `AGENTS.md`. Reinstala el kit con el idioma correcto desde **Configurar SDD**. |
+| La IA responde en otro idioma | La regla de idioma está en `.skills/sdd/SKILL.md` y en el bloque de `AGENTS.md`. Reinstala el kit con el idioma correcto desde **Configurar SDD**. |
 | Un proyecto muestra «SDD ↑» | Su kit es de una versión anterior: abre el proyecto y pulsa **Actualizar**. |
+| Los `.md` se ven desde el navegador | Pulsa **Proteger** en **Configurar SDD**. Si sigue devolviendo 200, Apache ignora los `.htaccess` (`AllowOverride None`) o el servidor es Nginx: bloquea las rutas en su configuración. |
+| La IA vuelve a preguntar por el proyecto en cada sesión | Falta `.sdd/proyecto.md` o su tabla «Onboarding» tiene pasos pendientes (**Configurar SDD** los muestra): pídele que termine el onboarding. |
+| «No se ha guardado: parece que hay una contraseña, clave o token» | El texto tiene algo con pinta de secreto en la línea indicada. Escribe solo el nombre de la variable (`DB_PASSWORD` en `.env`) o un marcador (`<tu-clave>`). |
+| Aparece 🔑 en un proyecto | Un `.md` contiene un posible secreto: quítalo y, si ya se subió a git, rota esa clave. |
 | Un archivo de `docs/architecture` no aparece como ADR | Solo se consideran decisiones los archivos con ID en el nombre (`ADR-001-…`, `0001-…`); renómbralo o créalo desde la app. |
 | Un plugin de terceros aparece como proyecto | La búsqueda deja sin marcar las carpetas que solo tienen `AGENTS.md` o `.git`; desmarca cualquier otra que no quieras. |
 
@@ -396,7 +437,7 @@ MD SDD Hub usa [versionado semántico](https://semver.org/lang/es/): `MAYOR.MENO
 1. Sube `version` en `package.json`.
 2. Añade la versión, la fecha y los cambios a [`CHANGELOG.md`](CHANGELOG.md) y [`CHANGELOG.es.md`](CHANGELOG.es.md).
 3. Actualiza este README y [`README.md`](README.md) con cada funcionalidad nueva o modificada, y la línea «Versión actual» del principio.
-4. Si cambia el kit (`kit/`), sube `KIT_VERSION` en `lib/scan.js` y la marca `sdd-hub vN` de `kit/es/instrucciones.md`, `kit/en/instructions.md` y los dos `claude-skill.md`, y mantén sincronizados el kit en español y en inglés.
+4. Si cambia el kit (`kit/`), sube `KIT_VERSION` en `lib/scan.js` y la versión (`version:` y la marca `sdd-hub vN`) de `kit/es/skill/SKILL.md`, `kit/en/skill/SKILL.md` y los dos `claude-skill.md`, y mantén sincronizados el kit en español y en inglés.
 5. Haz el commit y etiqueta la versión como `vX.Y.Z`.
 
 La misma lista está en [`AGENTS.md`](AGENTS.md), para que los agentes de IA que trabajen en este repositorio también la sigan. La versión actual se muestra en la barra lateral de la app y en **Ajustes**.

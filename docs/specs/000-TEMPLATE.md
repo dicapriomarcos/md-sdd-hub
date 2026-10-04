@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Estado | `draft` |
+| Estado | `backlog` |
 | Autor | Nombre |
 | Propietario | Nombre/rol |
 | Creada | AAAA-MM-DD |
@@ -69,4 +69,4 @@ Arquitectura, modelo de datos, migraciones, API, UX y decisiones relevantes.
 
 | Fecha | Estado | Nota |
 |---|---|---|
-| AAAA-MM-DD | `draft` | Creación de la spec |
+| AAAA-MM-DD | `backlog` | Creación de la spec |

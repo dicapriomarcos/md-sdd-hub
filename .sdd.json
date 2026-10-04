@@ -1,0 +1,13 @@
+{
+  "format": "sdd-hub/1",
+  "name": "md-sdd-hub",
+  "lang": "es",
+  "specsDir": "docs/specs",
+  "idPrefix": "SPEC",
+  "dirs": {
+    "feature": "docs/specs",
+    "design": "docs/design",
+    "architecture": "docs/architecture",
+    "fix": "docs/fixes"
+  }
+}

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | `draft` |
+| Status | `backlog` |
 | Author | Name |
 | Owner | Name/role |
 | Created | YYYY-MM-DD |
@@ -69,4 +69,4 @@ Architecture, data model, migrations, API, UX and relevant decisions (link the a
 
 | Date | Status | Note |
 |---|---|---|
-| YYYY-MM-DD | `draft` | Spec created |
+| YYYY-MM-DD | `backlog` | Spec created |

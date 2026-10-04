@@ -204,7 +204,8 @@
         const struck = /^\s*~~/.test(cb[2]);
         const kind = /^\**AC[-\s]?\d/i.test(cb[2]) ? 'ac' : /^\**(T|TASK|TAREA)[-\s]?\d/i.test(cb[2]) ? 't' : '';
         ctx.checks++;
-        return `<li class="task${checked ? ' done' : ''}${struck ? ' struck' : ''}${kind ? ' k-' + kind : ''}"><label><input type="checkbox" data-line="${it.itemLine}" data-text="${esc(cb[2].split('\n')[0].trim())}"${checked ? ' checked' : ''}${ctx.readonly ? ' disabled' : ''}><span>${inline(cb[2], ctx).replace(/\n/g, ' ')}</span></label>${childHtml}</li>`;
+        const copyBtn = ctx.readonly ? '' : `<button type="button" class="copy-task" data-action="copy-task" data-line="${it.itemLine}" title="${esc(ctx.copyTitle || 'Copy')}">⧉</button>`;
+        return `<li class="task${checked ? ' done' : ''}${struck ? ' struck' : ''}${kind ? ' k-' + kind : ''}">${copyBtn}<label><input type="checkbox" data-line="${it.itemLine}" data-text="${esc(cb[2].split('\n')[0].trim())}"${checked ? ' checked' : ''}${ctx.readonly ? ' disabled' : ''}><span>${inline(cb[2], ctx).replace(/\n/g, ' ')}</span></label>${childHtml}</li>`;
       }
       return `<li>${inline(it.head, ctx).replace(/\n/g, ' ')}${childHtml}</li>`;
     }).join('')}</${tag}>`;
@@ -223,7 +224,7 @@
       }
     }
     const L = raw.slice(start).map((t, k) => ({ t: t.replace(/\t/g, '    '), n: k + start }));
-    const ctx = { used: new Set(), toc: [], checks: 0, statuses: opts.statuses || null, readonly: !!opts.readonly, resolveImage: opts.resolveImage };
+    const ctx = { used: new Set(), toc: [], checks: 0, statuses: opts.statuses || null, readonly: !!opts.readonly, copyTitle: opts.copyTitle, resolveImage: opts.resolveImage };
     const html = fmHtml + blocks(L, ctx);
     return { html, toc: ctx.toc, checks: ctx.checks };
   }

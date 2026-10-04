@@ -8,6 +8,33 @@ Cada versión debe actualizar este archivo, [`CHANGELOG.md`](CHANGELOG.md), [`RE
 
 ## [Sin publicar]
 
+### Corregido
+- Las instrucciones de Copiar spec y Copiar tarea respetan la fase: completan la planificación y pasan a Esperando aprobación, esperan autorización antes de implementar y pasan a Esperando revisión solo con todas las tareas y criterios verificados.
+- El selector de carpetas de «Agregar proyecto» permite desplazarse hasta los últimos proyectos en ventanas bajas o con zoom, sin recortar la lista ni su barra de desplazamiento.
+
+### Cambiado
+- **Flujo nuevo de las features:** `backlog` («Por hacer») → `planning` («En planificación») → `awaiting-approval` («Esperando aprobación», lo pone la IA) → `in-progress` («En desarrollo», la persona aprueba) → `awaiting-review` («Esperando revisión», lo pone la IA) → `done` («Finalizado», la persona). `review`, `approved`, `verified` y `released` antiguos se siguen reconociendo al leer y pasan al estado nuevo más cercano. Cada proyecto puede quitar los estados que no usa (pestaña Configurar SDD): desaparecen de su tablero y se guardan como `skipStatuses` en `.sdd.json` para que la IA los salte. Fixes y diseño/arquitectura conservan sus estados. Nuevo botón **Eliminar proyecto** en la cabecera del proyecto (solo lo quita de la app).
+- **Estados nuevos en features y fixes.** `draft` («Borrador») pasa a ser `backlog` («Backlog», trabajo pendiente) y se añade el estado cerrado `cancelled` («Cancelada») a features y fixes. Al leer se siguen reconociendo `draft`, `borrador`, `todo`, `wontfix`, `cancelled`…; los documentos y estados personalizados que ya usan `draft` siguen funcionando.
+- **Las instrucciones SDD se leen por partes.** El kit v5 las instala como una skill por carpetas en `.skills/sdd/`: `SKILL.md` es un índice corto (frontmatter `name`, `version`, `install`, `description`, las reglas que valen siempre y una tabla con qué archivo leer para cada tarea) y cada tema va en un archivo corto (`tipos.md`, `formato.md`, `estados.md`, `implementacion.md`, `registro.md`, `registrar-decisiones.md`, `sesion.md`, `revision.md` y `plantillas/`; en inglés, `types.md`, `format.md`, `statuses.md`…). La IA abre solo lo que necesita la tarea en lugar de leer todas las instrucciones cada vez.
+- El bloque de enlace se escribe en **`AGENTS.md`, `CLAUDE.md` y `GEMINI.md`**, y se crean los que no existan, para que cada agente lo encuentre en su archivo.
+- Al actualizar un kit v4 se instala `.skills/sdd/` y se retiran `.sdd/instrucciones.md` y `.sdd/plantillas/` (o sus equivalentes en inglés). `.sdd/` queda para los archivos del proyecto: avisos de revisión, ficha, estado y decisiones.
+- Las skills nuevas se crean por defecto en `.skills/<nombre>/` (para cualquier IA) con formato de índice; también se puede elegir `.claude/skills/`.
+- Kit v5.
+
+### Añadido
+- **Botón de copiar tarea**: cada tarea con casilla (`T-NN`, `AC-NN`…) de una spec muestra un botón ⧉ al pasar el ratón que la copia lista para pegar en el chat de cualquier IA (Claude, Codex, Gemini…): proyecto, spec (ID, título y estado), archivo, tarea con su descripción y estado, un aviso si la spec aún no está en desarrollo y una instrucción final para seguir la skill `sdd` y marcar la casilla al terminar.
+- **Decisiones rápidas** (`.sdd/decisiones.md` / `.sdd/decisions.md`): una regla por línea, agrupada por área (Textos, Interfaz, Código, Proceso), con fecha y enlace opcional a su DES o ADR. La IA apunta en el momento las normas que fijas al hablar con ella («di X en vez de Y», «nunca…») y las lee antes de programar o de escribir textos. Las que necesitan contexto siguen yendo en un DES o ADR, enlazado desde la lista.
+- Pestaña **Decisiones** en cada proyecto: reglas por área con buscador, formulario para añadir una (la IA recibe un aviso) y la lista de DES y ADR aceptados.
+- **Estado de la sesión** (`.sdd/estado.md` / `.sdd/status.md`): la IA anota dónde quedó el trabajo, los siguientes pasos y los bloqueos al terminar cada tarea o sesión, y lo lee al empezar. La app lo muestra en el proyecto («Dónde quedó») y en su tarjeta.
+- **Ficha del proyecto** (`.sdd/proyecto.md` / `.sdd/project.md`) y **onboarding por pasos** (`onboarding.md`): ficha, Git, diseño y decisiones existentes. Pensado también para proyectos ya empezados: la IA deduce lo que puede del código (stack, comandos, variables CSS, Tailwind, `theme.json`, fuentes, componentes, tono de los textos, librerías y convenciones), propone y solo pregunta lo que falta, de una en una. El progreso queda en la tabla «Onboarding» de la ficha; cuando todo está hecho, no vuelve a preguntar. **Configurar SDD** muestra los pasos pendientes.
+- **Seguridad** (`seguridad.md` / `security.md`) y regla de las que valen siempre: **nunca se escriben secretos** (contraseñas, claves, tokens, cadenas de conexión, valores de `.env`) en ningún `.md`, solo el nombre de la variable; qué hacer si aparece uno (quitarlo y rotarlo) y qué archivos no se suben a git.
+- **La app se niega a guardar secretos**: al editar un `.md`, añadir una decisión, crear un documento o una skill, o cambiar un estado con nota, si el texto contiene algo con pinta de contraseña, clave o token, no se guarda y se indica la línea. Los marcadores de ejemplo (`<tu-clave>`, `${DB_PASSWORD}`, `********`) y los nombres de variable sí se permiten.
+- **Aviso de secretos ya escritos**: la app revisa los `.md` de cada proyecto y avisa (🔑) de los que contienen posibles secretos, con archivo y línea, en el proyecto, su tarjeta y la lista de documentos.
+- **Git del proyecto** (`.sdd/git.md`) y reglas en `git.md`, que la IA **solo lee al hacer commit, push o desplegar**: nombre y email con los que se commitea (con `git config --local`, nunca global), remotes `origin`, `dev` y `pro` con su rama y cuándo se sube a cada uno, idioma y formato de los commits. **Producción (`pro`) solo con autorización expresa** para cada push, nunca `--force`; `git status` y revisión de secretos antes de cada commit. **Configurar SDD** muestra la identidad y los remotes.
+- **Protección web**: las carpetas con documentos llevan un `.htaccess` (Apache 2.4 y 2.2) que bloquea el acceso desde el navegador. Las ocultas (`.sdd/`, `.skills/`, `.claude/`…) se bloquean enteras y `docs/` solo para los Markdown. Nunca se pisa un `.htaccess` que ya exista. Se instala con el kit, se comprueba en **Configurar SDD** (botón «Proteger») y se puede desactivar en **Ajustes**.
+- La pestaña **Skills** muestra las skills de `.skills/` con su versión y su política de instalación (`install`).
+- Las carpetas `.skills/` y `.memory/` aparecen en «Documentos» y en «Cambios en .md».
+
 ## [1.3.0] - 2026-10-03
 
 ### Cambiado
