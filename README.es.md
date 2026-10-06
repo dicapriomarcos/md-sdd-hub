@@ -4,7 +4,7 @@
 
 Panel local para seguir el desarrollo dirigido por especificaciones (SDD) en todos tus proyectos. Ve cada spec con su estado y progreso, consulta y edita los `.md` que escriben los agentes de IA (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, docs, skills) y devuelve tus cambios a la IA para que los revise. Sin dependencias ni base de datos.
 
-> Versión actual: **1.3.0** · Qué cambia en cada versión: [CHANGELOG](CHANGELOG.es.md).
+> Versión actual: **1.4.0** · Qué cambia en cada versión: [CHANGELOG](CHANGELOG.es.md).
 
 ## Contenido
 

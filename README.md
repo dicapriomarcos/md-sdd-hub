@@ -4,7 +4,7 @@
 
 Local dashboard to track spec-driven development (SDD) across all your projects. See every spec, its status and progress, browse and edit the `.md` files AI agents write (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, docs, skills), and send your edits back to the AI for review. Zero dependencies, no database.
 
-> Current version: **1.3.0** · See what changed in each release in the [CHANGELOG](CHANGELOG.md).
+> Current version: **1.4.0** · See what changed in each release in the [CHANGELOG](CHANGELOG.md).
 
 ## Contents
 
