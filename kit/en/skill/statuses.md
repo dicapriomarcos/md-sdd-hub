@@ -52,4 +52,4 @@
 3. Add a row at the end of `## History`: `| YYYY-MM-DD | \`new-status\` | What happened and why |`.
 4. Update the document's row in its folder's `README.md` (status and date), as [`registry.md`](registry.md) explains.
 
-When a DES or ADR becomes `accepted`, add its main rule to `.sdd/decisions.md` with `→ ID`; if it becomes `deprecated` or `superseded`, remove or replace that line.
+When a DES or ADR becomes `accepted`, add its main rule to `.sdd/decisions.md` with `→ ID`; if it becomes `deprecated` or `superseded`, remove or replace that line. If it is a DES that sets something visual or about components, also carry its rules and values into the design system parts it affects ([`design-system.md`](design-system.md)).

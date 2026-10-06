@@ -10,6 +10,7 @@
   - `slug`: **in English**, lowercase, words separated by hyphens, about 6 words max (e.g. `export-reports-to-pdf`).
 - Template: `<folder>/000-TEMPLATE.md` if it exists; otherwise the one in [`templates/`](templates/) for that type.
 - Registry: `<folder>/README.md`, with a table under `## Registry` (see [`registry.md`](registry.md)).
+- The **design system** lives in `<design folder>/system/` and has its own format, with no ID or status: see [`design-system.md`](design-system.md).
 
 ## Mandatory structure
 

@@ -12,7 +12,7 @@
 ## Cuándo crear cada uno
 
 - **Feature**: funcionalidad nueva o cambio de comportamiento de alcance medio o alto.
-- **Diseño**: cuando se decide algo de la interfaz que afecta a más de una pantalla o que hay que mantener en el tiempo (un patrón de componente, la navegación, el sistema visual, el tono de los textos).
+- **Diseño**: cuando se decide algo de la interfaz que afecta a más de una pantalla o que hay que mantener en el tiempo y necesita contexto o alternativas (un patrón de componente, la navegación, el modo oscuro, el tono de los textos). Lo que queda vigente se escribe además en el **sistema de diseño** (`docs/design/sistema/`, ver [`sistema-diseno.md`](sistema-diseno.md)): colores, tipografía, espaciado, bordes, componentes y patrones, un archivo por parte con un `index.md`. Los valores sueltos (un color, un radio) van directos al sistema, sin DES.
 - **Arquitectura**: al elegir o cambiar una tecnología o librería, un patrón, la estructura del código o una convención. Si al programar vas a contradecir un ADR `accepted`, no lo hagas en silencio: propón un ADR nuevo que lo sustituya.
 - **Fix**: regresiones, incidentes en producción, errores con una causa raíz no obvia o cuando la persona lo pida. Los errores triviales no necesitan FIX.
 

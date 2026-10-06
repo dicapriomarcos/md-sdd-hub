@@ -33,9 +33,11 @@ What is decided, concretely and actionably: screens, flows, components, states (
 
 - Concrete rule the AI must apply when building screens (e.g. "destructive buttons always ask for confirmation").
 
+When the decision becomes `accepted`, these rules and their values are carried into the matching parts of the design system (`system/`).
+
 ## 6. References
 
-Mockups, screenshots, links to Figma or to the design system documentation.
+Mockups, screenshots, links to Figma and to the affected design system parts (e.g. `system/components/buttons.md`).
 
 ## History
 

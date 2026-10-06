@@ -1,18 +1,19 @@
 ---
 name: sdd
-version: 5
+version: 6
 install: always
 description: >
   SDD documentation for this project in the MD SDD Hub format: features (specs), UX/UI design
-  decisions, architecture decisions (ADR) and fixes. Use it whenever you need to create, draft, review,
+  decisions, design system, architecture decisions (ADR) and fixes. Use it whenever you need to create, draft, review,
   approve, implement, verify or close a spec, a feature, a design or architecture decision, or document
   a fix ("create a spec for…", "record this decision", "create an ADR", "log this fix", "move SPEC-012
   to in-progress", "check off the finished tasks"); before coding any medium or large feature; when
-  choosing or changing technologies, patterns or code conventions; when fixing a non-trivial bug; and
-  when there are notices in `.sdd/review/`.
+  choosing or changing technologies, patterns or code conventions; when deciding colors, typography,
+  spacing, borders or what components look like (design system); before building or changing screens;
+  when fixing a non-trivial bug; and when there are notices in `.sdd/review/`.
 ---
 
-<!-- sdd-hub v5 · format sdd-hub/1 · lang en -->
+<!-- sdd-hub v6 · format sdd-hub/1 · lang en -->
 
 # Skill: SDD (MD SDD Hub format)
 
@@ -33,8 +34,8 @@ Without opening any other file:
 - Technical identifiers are never translated: statuses (`backlog`, `in-progress`…), prefixes (`SPEC`, `ADR`…), `FR-NN`, `AC-NN`, `T-NN`.
 - **Never** move anything to `done`, `accepted`, `rejected` or `cancelled` on your own, nor a feature from `awaiting-approval` to `in-progress`: propose it and wait for confirmation.
 - Do not start coding a medium or large feature without an approved spec (in `in-progress`).
-- **Before coding or writing interface copy, read `.sdd/decisions.md`** (it is short) and the `accepted` ADRs and DESs that affect what you are about to change, and follow their rules.
-- When the user sets a rule ("always…", "never…", "say X instead of Y"), **record it right away** in `.sdd/decisions.md` following [`recording-decisions.md`](recording-decisions.md).
+- **Before coding or writing interface copy, read `.sdd/decisions.md`** (it is short) and the `accepted` ADRs and DESs that affect what you are about to change, and follow their rules. If you are going to touch the interface and the design system exists (`docs/design/system/index.md`), read its index and only the parts you touch.
+- When the user sets a rule ("always…", "never…", "say X instead of Y"), **record it right away** in `.sdd/decisions.md` following [`recording-decisions.md`](recording-decisions.md). If it is a visual or component decision (a color, a font, a radius, what a button looks like), it goes in its part of the design system ([`design-system.md`](design-system.md)).
 - Checkboxes (`- [ ]` / `- [x]`) are reserved for `AC-NN` and `T-NN`: the tool counts them as progress.
 - **Never write secrets in any `.md`**: passwords, API keys, tokens, connection strings with credentials or `.env` values. Write only the variable name (`STRIPE_SECRET_KEY` in `.env`). If you find one, follow [`security.md`](security.md).
 - **Never push to production (`pro`) without the user's explicit authorization** for that push. Before any commit or push, read [`git.md`](git.md).
@@ -42,8 +43,9 @@ Without opening any other file:
 ## At the start of every session
 
 1. If `.sdd/status.md` exists, read it: it says where the work stands. It is short.
-2. If `.sdd/project.md` does **not** exist, or its `## Onboarding` table has `Pending` steps, follow [`onboarding.md`](onboarding.md) only for what is missing. If everything is `✅`, do not ask anything about the project.
-3. Check for notices in `.sdd/review/` (not inside `done/`). If there are any, review them before continuing with related work.
+2. If `.sdd/project.md` does **not** exist, or its `## Onboarding` table has `Pending` steps, follow [`onboarding.md`](onboarding.md) only for what is missing. If everything is `✅`, do not ask anything about the project, except about the design system (below).
+3. If the project already has a design and the `Design` step is `Pending` (or `✅` without `docs/design/system/index.md`), **ask once** whether to build the design system now. If they say no, leave it `Pending` and ask again in the next session ([`design-system.md`](design-system.md)).
+4. Check for notices in `.sdd/review/` (not inside `done/`). If there are any, review them before continuing with related work.
 
 When you finish a task and at the end of the session, update `.sdd/status.md` (format in [`session.md`](session.md)).
 
@@ -60,6 +62,7 @@ When you finish a task and at the end of the session, update `.sdd/status.md` (f
 | [`implementation.md`](implementation.md) | When implementing a feature or a fix: checkboxes, new work and decisions made along the way |
 | [`registry.md`](registry.md) | When creating a document or changing its status: the table in its folder's `README.md` |
 | [`recording-decisions.md`](recording-decisions.md) | When the user sets a rule or a decision is made: whether it goes in a line of `.sdd/decisions.md` or in a DES / ADR, and in which format |
+| [`design-system.md`](design-system.md) | When something visual or about a component is decided (colors, fonts, spacing, borders, buttons…) and **before building or changing screens**: the design system in parts, with its `index.md` |
 | [`onboarding.md`](onboarding.md) | If `.sdd/project.md` is missing or its onboarding has pending steps (profile, Git, design, existing decisions), or if the user asks to redo a step |
 | [`session.md`](session.md) | When updating `.sdd/status.md` or the project profile: which project file holds what |
 | [`git.md`](git.md) | **Only when committing, pushing or deploying**: identity, when to push to origin, dev and pro, and rules |

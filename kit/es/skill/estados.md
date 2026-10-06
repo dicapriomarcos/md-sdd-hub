@@ -52,4 +52,4 @@
 3. Añade una fila al final de `## Historial`: `| AAAA-MM-DD | \`nuevo-estado\` | Qué ha pasado y por qué |`.
 4. Actualiza la fila del documento en el `README.md` de su carpeta (estado y fecha), como dice [`registro.md`](registro.md).
 
-Cuando un DES o ADR pasa a `accepted`, añade su regla principal a `.sdd/decisiones.md` con `→ ID`; si pasa a `deprecated` o `superseded`, quita o sustituye esa línea.
+Cuando un DES o ADR pasa a `accepted`, añade su regla principal a `.sdd/decisiones.md` con `→ ID`; si pasa a `deprecated` o `superseded`, quita o sustituye esa línea. Si es un DES que fija algo visual o de componentes, lleva además sus reglas y valores a las partes del sistema de diseño que toque ([`sistema-diseno.md`](sistema-diseno.md)).

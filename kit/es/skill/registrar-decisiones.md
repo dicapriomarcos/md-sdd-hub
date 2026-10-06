@@ -12,6 +12,7 @@ En cuanto la persona fije una norma, aunque sea de pasada: «siempre…», «nun
 
 - **Solo una línea** si la regla se entiende sola y no hubo alternativas que discutir (un texto, un nombre, una preferencia).
 - **DES o ADR** si necesita contexto, alternativas o consecuencias, o si afecta a muchas pantallas o a la estructura del código (el sistema de botones, la navegación, una librería). Créalo en `proposed` siguiendo [`formato.md`](formato.md) y añade además una línea en `decisiones.md` que lo enlace, para que la regla se encuentre en un único sitio.
+- **Sistema de diseño** si es una decisión visual o de un componente (un color, una fuente, un tamaño, un radio, cómo es un botón o un aviso): escríbela en su parte de `docs/design/sistema/` siguiendo [`sistema-diseno.md`](sistema-diseno.md), no como línea suelta. `decisiones.md` solo lleva una línea que enlaza el índice del sistema.
 
 ## Formato
 

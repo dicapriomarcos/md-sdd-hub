@@ -12,6 +12,7 @@ Quick line or document?
 
 - **Just a line** if the rule stands on its own and there were no alternatives to discuss (a piece of copy, a name, a preference).
 - **DES or ADR** if it needs context, alternatives or consequences, or if it affects many screens or the code structure (the button system, navigation, a library). Create it as `proposed` following [`format.md`](format.md) and also add a line in `decisions.md` linking it, so every rule can be found in one place.
+- **Design system** if it is a visual or component decision (a color, a font, a size, a radius, what a button or an alert looks like): write it in its part of `docs/design/system/` following [`design-system.md`](design-system.md), not as a separate line. `decisions.md` only has one line linking the system index.
 
 ## Format
 

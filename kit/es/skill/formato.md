@@ -10,6 +10,7 @@
   - `slug`: en español, en minúsculas, sin tildes ni eñes, palabras separadas por guiones, unas 6 palabras como máximo (p. ej. `exportar-informes-en-pdf`).
 - Plantilla: `<carpeta>/000-TEMPLATE.md` si existe; si no, la de [`plantillas/`](plantillas/) para ese tipo.
 - Registro: `<carpeta>/README.md`, con una tabla bajo `## Registro` (ver [`registro.md`](registro.md)).
+- El **sistema de diseño** vive en `<carpeta de diseño>/sistema/` y tiene su propio formato, sin ID ni estado: ver [`sistema-diseno.md`](sistema-diseno.md).
 
 ## Estructura obligatoria
 

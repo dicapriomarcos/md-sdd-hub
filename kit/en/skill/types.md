@@ -12,7 +12,7 @@
 ## When to create each one
 
 - **Feature**: new functionality or a behavior change of medium or large scope.
-- **Design**: when something about the interface is decided that affects more than one screen or must be kept over time (a component pattern, navigation, the visual system, the tone of the copy).
+- **Design**: when something about the interface is decided that affects more than one screen or must be kept over time and needs context or alternatives (a component pattern, navigation, dark mode, the tone of the copy). What remains in force is also written in the **design system** (`docs/design/system/`, see [`design-system.md`](design-system.md)): colors, typography, spacing, borders, components and patterns, one file per part with an `index.md`. Single values (a color, a radius) go straight into the system, without a DES.
 - **Architecture**: when choosing or changing a technology or library, a pattern, the code structure or a convention. If while coding you are about to contradict an `accepted` ADR, do not do it silently: propose a new ADR that supersedes it.
 - **Fix**: regressions, production incidents, bugs with a non-obvious root cause, or when the user asks. Trivial bugs do not need a FIX.
 

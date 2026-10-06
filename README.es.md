@@ -74,6 +74,7 @@ MD SDD Hub te da un único sitio para:
 **Trabajo con la IA**
 - Instrucciones SDD neutras en `.skills/sdd/`, **por partes**: un índice corto y un archivo por tema, para que la IA lea solo lo que necesita. Enlazadas desde `AGENTS.md`, `CLAUDE.md` y `GEMINI.md` (se crean si no existen), para que Codex, Claude Code, Gemini, Cursor y otros escriban los documentos igual. No te ata a un solo agente.
 - **Decisiones rápidas** en `.sdd/decisiones.md`: las normas que fijas al hablar con la IA («di X en vez de Y», «nunca…»), una por línea y por área, con su pestaña para buscarlas y añadirlas.
+- **Sistema de diseño por partes** en `docs/design/sistema/`: la IA escribe cada decisión de diseño (colores, tipografía, espaciado, bordes, botones, formularios…) en su archivo, con un `index.md` que dice dónde está cada cosa, y lo va armando de a poco. Si el proyecto ya tiene diseño, pregunta una vez por sesión si lo arma ahora. La pestaña Diseño lo muestra agrupado.
 - **Estado de la sesión** (`.sdd/estado.md`): dónde quedó el trabajo, siguientes pasos y bloqueos, visible en el proyecto. **Ficha del proyecto** (`.sdd/proyecto.md`) con onboarding la primera vez, para que la IA no vuelva a preguntar.
 - **Protección web**: `.htaccess` en las carpetas con documentos para que Apache (XAMPP, hosting) no los sirva.
 - **Sin secretos en los `.md`**: la app se niega a guardar contraseñas, claves o tokens y avisa (🔑) de los que ya estén escritos; las instrucciones prohíben a la IA escribirlos.
@@ -149,7 +150,7 @@ Un tablero por tipo de documento, con una columna por cada estado de ese tipo. E
 | Pestaña | Contenido |
 |---|---|
 | **Features** | Características de la aplicación. Vista de lista (ordenable y filtrable: ID, título, estado, progreso, último cambio, alertas) o de tablero. |
-| **Diseño** | Decisiones de diseño UX/UI, en lista o tablero. |
+| **Diseño** | Decisiones de diseño UX/UI, en lista o tablero, y encima el **sistema de diseño**: sus partes agrupadas en fundamentos, componentes y patrones, con enlace al índice. Si aún no existe, dice dónde se creará y copia una instrucción para que la IA lo arme a partir del código. |
 | **Arquitectura** | Decisiones de arquitectura (ADR), en lista o tablero. |
 | **Fixes** | Correcciones importantes, en lista o tablero. |
 | **Decisiones** | Las reglas vigentes de `.sdd/decisiones.md` por área, con buscador y formulario para añadir una, y los DES y ADR aceptados. |
@@ -183,8 +184,8 @@ Se instala al agregar un proyecto («Preparar el proyecto») o desde **Proyecto 
 | Archivo | Para qué |
 |---|---|
 | `.skills/sdd/SKILL.md` | Índice de la skill (frontmatter `name`, `version`, `install`, `description`): idioma, las reglas que valen siempre, qué hacer al empezar cada sesión y la tabla de archivos. |
-| `.skills/sdd/tipos.md` · `formato.md` · `estados.md` · `implementacion.md` · `registro.md` · `registrar-decisiones.md` · `onboarding.md` · `sesion.md` · `git.md` · `seguridad.md` · `revision.md` | Un tema por archivo: tipos de documento, ubicación y formato, ciclos de estados, implementación, registro, decisiones rápidas, onboarding por pasos, ficha y estado de la sesión, Git (solo al hacer commit, push o desplegar), seguridad y procedimiento de revisión. En inglés: `types.md`, `format.md`, `statuses.md`, `implementation.md`, `registry.md`, `recording-decisions.md`, `onboarding.md`, `session.md`, `git.md`, `security.md`, `review.md`. |
-| `.skills/sdd/plantillas/` (es) · `.skills/sdd/templates/` (en) | Una plantilla por tipo de documento (feature, diseño, arquitectura, fix) y las de la ficha, el estado, las decisiones y Git. |
+| `.skills/sdd/tipos.md` · `formato.md` · `estados.md` · `implementacion.md` · `registro.md` · `registrar-decisiones.md` · `sistema-diseno.md` · `onboarding.md` · `sesion.md` · `git.md` · `seguridad.md` · `revision.md` | Un tema por archivo: tipos de documento, ubicación y formato, ciclos de estados, implementación, registro, decisiones rápidas, sistema de diseño, onboarding por pasos, ficha y estado de la sesión, Git (solo al hacer commit, push o desplegar), seguridad y procedimiento de revisión. En inglés: `types.md`, `format.md`, `statuses.md`, `implementation.md`, `registry.md`, `recording-decisions.md`, `design-system.md`, `onboarding.md`, `session.md`, `git.md`, `security.md`, `review.md`. |
+| `.skills/sdd/plantillas/` (es) · `.skills/sdd/templates/` (en) | Una plantilla por tipo de documento (feature, diseño, arquitectura, fix) y las de la ficha, el estado, las decisiones, Git y el sistema de diseño (índice y parte). |
 | Bloque en `AGENTS.md`, `CLAUDE.md` y `GEMINI.md` | Enlaza la skill, indica a la IA en qué idioma trabajar y qué leer al empezar cada sesión. Los tres se crean si no existen, porque cada agente lee el suyo; el bloque va entre marcas `<!-- sdd-hub:start -->` y el resto del archivo no se toca. |
 | `.htaccess` en `.sdd/`, `.skills/`, `.claude/` y `docs/` | Bloquea el acceso web (Apache 2.4 y 2.2): las carpetas ocultas enteras y `docs/` solo para los Markdown. No se pisa un `.htaccess` que ya exista. |
 | `.claude/skills/sdd-spec/SKILL.md` | Opcional, para Claude Code: una skill corta que remite a `.skills/sdd/` para que Claude la cargue en el momento adecuado. |
@@ -195,7 +196,25 @@ Se instala al agregar un proyecto («Preparar el proyecto») o desde **Proyecto 
 
 ### Onboarding
 
-La primera vez que una IA trabaja en un proyecto con el kit, hace un onboarding **por pasos**: ficha, Git, diseño (si hay interfaz) y decisiones que ya existen. En cada paso primero **detecta** lo que puede (en un proyecto ya empezado, casi todo: stack y comandos, remotes y estilo de los commits, variables CSS, Tailwind o `theme.json`, fuentes, cómo son los botones y el tono de los textos, librerías y convenciones), te **propone** lo que ha encontrado y solo pregunta lo que falta, de una en una. Las reglas van a `.sdd/decisiones.md` y, si hay un sistema visual completo o una decisión técnica con contexto, propone un DES o un ADR en `proposed` para que lo aceptes. El progreso queda en la ficha: cuando todo está hecho, la IA no vuelve a preguntar. Para empezarlo o terminarlo, pídeselo: «haz el onboarding».
+La primera vez que una IA trabaja en un proyecto con el kit, hace un onboarding **por pasos**: ficha, Git, diseño (si hay interfaz) y decisiones que ya existen. En cada paso primero **detecta** lo que puede (en un proyecto ya empezado, casi todo: stack y comandos, remotes y estilo de los commits, variables CSS, Tailwind o `theme.json`, fuentes, cómo son los botones y el tono de los textos, librerías y convenciones), te **propone** lo que ha encontrado y solo pregunta lo que falta, de una en una. Las reglas van a `.sdd/decisiones.md`, el diseño que confirmes al **sistema de diseño** y, si hay una decisión técnica con contexto, propone un ADR en `proposed` para que lo aceptes. El progreso queda en la ficha: cuando todo está hecho, la IA no vuelve a preguntar. Los pasos que dejas para más tarde (por ejemplo, armar el sistema de diseño) quedan `Pendiente` y la IA vuelve a preguntar una vez en la siguiente sesión.
+
+### Sistema de diseño
+
+Las decisiones de diseño terminan en un sistema de diseño repartido en archivos cortos, en `<carpeta de diseño>/sistema/` (`system/` en inglés), para que la IA lea solo la parte que va a tocar:
+
+```
+docs/design/sistema/
+├── index.md          índice: qué partes hay y dónde está cada cosa
+├── fundamentos/      colores, tipografia, espaciado, maquetacion, bordes, sombras, iconos, movimiento
+├── componentes/      botones, formularios, tarjetas, avisos, navegacion, modales, tablas…
+└── patrones/         estados-vacios, carga-y-errores…
+```
+
+- **Se arma de a poco**: cada vez que decides algo (un color, una fuente, el radio de los bordes, cómo es un botón) la IA lo escribe en su parte, crea la parte si no existe y actualiza el índice. Solo entra lo decidido o confirmado; nada de valores inventados.
+- Los valores se definen una vez en `fundamentos/` con un token (`--color-primario`, `--radio-md`) y los componentes los citan; cada parte dice dónde viven en el código.
+- Los DES siguen guardando el porqué y las alternativas; al aceptarse, sus reglas pasan al sistema. En `.sdd/decisiones.md` queda una sola línea que enlaza el índice.
+- Antes de construir o cambiar una pantalla, la IA lee el índice y solo las partes que toca.
+- Si el proyecto ya tiene diseño y el sistema no está escrito, la IA pregunta una vez por sesión si lo arma ahora a partir del código; si dices que no, vuelve a preguntar en la siguiente sesión, y si pides que no insista, deja de hacerlo. Para empezarlo o terminarlo, pídeselo: «haz el onboarding».
 
 ### Archivos del proyecto
 
@@ -232,7 +251,7 @@ Los proyectos con un kit de una versión anterior (por ejemplo, la skill `.claud
 | **Arquitectura** | Una decisión técnica (ADR): tecnologías, librerías, patrones, estructura de carpetas y clases, convenciones de código | `ADR` | `docs/architecture/` (también `docs/adr/`, `docs/decisions/`) |
 | **Fix** | Una corrección importante: síntoma, causa raíz, solución y prevención | `FIX` | `docs/fixes/` |
 
-Un documento por archivo: `<carpeta>/<PREFIJO>-NNN-nombre-corto.md`. Las carpetas se pueden cambiar por proyecto en `.sdd.json` (`dirs`). En las carpetas de diseño, arquitectura y fixes solo se consideran documentos los archivos con un ID en el nombre, así que una introducción o un resumen en la misma carpeta no se toca.
+Un documento por archivo: `<carpeta>/<PREFIJO>-NNN-nombre-corto.md`. Las carpetas se pueden cambiar por proyecto en `.sdd.json` (`dirs`). En las carpetas de diseño, arquitectura y fixes solo se consideran documentos los archivos con un ID en el nombre, así que una introducción o un resumen en la misma carpeta no se toca; tampoco las subcarpetas, como el sistema de diseño (`sistema/`).
 
 Una feature tiene este aspecto:
 

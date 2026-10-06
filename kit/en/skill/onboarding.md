@@ -47,13 +47,14 @@ Statuses: `✅`, `Pending` or `N/A` (for example, Design in a library with no in
 
 ## Step 3 · Design (if the project has an interface)
 
-In a project already underway the design exists even if it is not written down: the goal is to write it down so the AI respects it.
+In a project already underway the design exists even if it is not written down: the goal is to write it down, as a **design system** in parts, so the AI respects it. When to propose it and what to do if the user leaves it for later (you ask again in the next session): [`design-system.md`](design-system.md). If there is no design yet, leave the step `Pending` until one arrives.
 
 - **Detect**: CSS variables (`:root`, `--color-*`), `tailwind.config.*`, `theme.json` (WordPress), tokens or the theme of the component framework, the fonts being loaded, and what the most repeated components actually look like (buttons, forms, cards, alerts). Also look at the tone of the interface copy (formal or informal, capitalization, length).
 - **Propose**, do not impose: summarize what you found ("Primary #2563eb, Inter font, 8 px rounded buttons with sentence-case labels, informal tone") and ask whether that is how it should stay or whether something is a mistake that must not be copied.
 - **Write**:
-  - The short rules in `.sdd/decisions.md` (`Interface` and `Copy` areas), as [`recording-decisions.md`](recording-decisions.md) explains.
-  - If there is a complete visual system (palette, typography, components), a DES in `proposed` ("Visual system") following [`format.md`](format.md), linked from `decisions.md`. The user decides whether to accept it.
+  - What was confirmed, in the **design system** (`docs/design/system/`) following [`design-system.md`](design-system.md): `index.md` and one part for each thing you found (`foundations/colors.md`, `foundations/typography.md`, `foundations/borders.md`, `components/buttons.md`…), with their tokens and where they live in the code. Only the parts there is something for; the rest will be added as it is decided.
+  - In `.sdd/decisions.md`, the `Interface` line linking the system index and the `Copy` rules (tone, formal or informal), as [`recording-decisions.md`](recording-decisions.md) explains.
+  - Whatever the user is unsure about or wants to change, under "To be defined" in the index or as a DES in `proposed`.
 
 ## Step 4 · Existing decisions
 

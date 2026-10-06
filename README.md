@@ -74,6 +74,7 @@ MD SDD Hub gives you one place to:
 **Working with the AI**
 - Agent-neutral SDD instructions in `.skills/sdd/`, **split into parts**: a short index and one file per topic, so the AI reads only what it needs. Linked from `AGENTS.md`, `CLAUDE.md` and `GEMINI.md` (created if missing), so Codex, Claude Code, Gemini, Cursor and others write documents the same way. You are not tied to a single agent.
 - **Quick decisions** in `.sdd/decisions.md`: the rules you set while talking to the AI ("say X instead of Y", "never…"), one per line and per area, with their own tab to search and add them.
+- **Design system in parts** in `docs/design/system/`: the AI writes every design decision (colors, typography, spacing, borders, buttons, forms…) in its own file, with an `index.md` that says where everything is, and builds it up bit by bit. If the project already has a design, it asks once per session whether to build it now. The Design tab shows it grouped.
 - **Session status** (`.sdd/status.md`): where the work stands, next steps and blockers, shown in the project. **Project profile** (`.sdd/project.md`) with onboarding the first time, so the AI does not ask again.
 - **Web protection**: `.htaccess` in folders with documents so Apache (XAMPP, hosting) does not serve them.
 - **No secrets in `.md` files**: the app refuses to save passwords, keys or tokens and flags (🔑) any already written; the instructions forbid the AI to write them.
@@ -149,7 +150,7 @@ One board per document type, with a column per status of that type. Pick the typ
 | Tab | Content |
 |---|---|
 | **Features** | Application features. List (sortable, filterable: ID, title, status, progress, last change, alerts) or board view. |
-| **Design** | UX/UI design decisions, as a list or a board. |
+| **Design** | UX/UI design decisions, as a list or a board, topped by the **design system**: its parts grouped into foundations, components and patterns, with a link to the index. If it does not exist yet, it says where it will be created and copies an instruction for the AI to build it from the code. |
 | **Architecture** | Architecture decisions (ADR), as a list or a board. |
 | **Fixes** | Important fixes, as a list or a board. |
 | **Decisions** | The rules in force from `.sdd/decisions.md` by area, with search and a form to add one, plus the accepted DESs and ADRs. |
@@ -183,8 +184,8 @@ It is installed when you add a project (“Prepare the project”) or from **Pro
 | File | Purpose |
 |---|---|
 | `.skills/sdd/SKILL.md` | Skill index (`name`, `version`, `install`, `description` frontmatter): language, the rules that always apply, what to do at the start of every session and the file table. |
-| `.skills/sdd/types.md` · `format.md` · `statuses.md` · `implementation.md` · `registry.md` · `recording-decisions.md` · `onboarding.md` · `session.md` · `git.md` · `security.md` · `review.md` | One topic per file: document types, location and format, lifecycles, implementation, registry, quick decisions, step-by-step onboarding, project profile and session status, Git (only when committing, pushing or deploying), security and the review procedure. In Spanish: `tipos.md`, `formato.md`, `estados.md`, `implementacion.md`, `registro.md`, `registrar-decisiones.md`, `onboarding.md`, `sesion.md`, `git.md`, `seguridad.md`, `revision.md`. |
-| `.skills/sdd/templates/` (en) · `.skills/sdd/plantillas/` (es) | One template per document type (feature, design, architecture, fix) plus the profile, status, decisions and Git templates. |
+| `.skills/sdd/types.md` · `format.md` · `statuses.md` · `implementation.md` · `registry.md` · `recording-decisions.md` · `design-system.md` · `onboarding.md` · `session.md` · `git.md` · `security.md` · `review.md` | One topic per file: document types, location and format, lifecycles, implementation, registry, quick decisions, design system, step-by-step onboarding, project profile and session status, Git (only when committing, pushing or deploying), security and the review procedure. In Spanish: `tipos.md`, `formato.md`, `estados.md`, `implementacion.md`, `registro.md`, `registrar-decisiones.md`, `sistema-diseno.md`, `onboarding.md`, `sesion.md`, `git.md`, `seguridad.md`, `revision.md`. |
+| `.skills/sdd/templates/` (en) · `.skills/sdd/plantillas/` (es) | One template per document type (feature, design, architecture, fix) plus the profile, status, decisions, Git and design system (index and part) templates. |
 | Block in `AGENTS.md`, `CLAUDE.md` and `GEMINI.md` | Links to the skill, tells the AI which language to use and what to read at the start of every session. All three are created if missing, because each agent reads its own; the block goes between `<!-- sdd-hub:start -->` markers and the rest of the file is untouched. |
 | `.htaccess` in `.sdd/`, `.skills/`, `.claude/` and `docs/` | Blocks web access (Apache 2.4 and 2.2): hidden folders entirely and `docs/` only for Markdown files. An existing `.htaccess` is never overwritten. |
 | `.claude/skills/sdd-spec/SKILL.md` | Optional, for Claude Code: a short skill that points to `.skills/sdd/` so Claude loads it at the right time. |
@@ -195,7 +196,25 @@ It is installed when you add a project (“Prepare the project”) or from **Pro
 
 ### Onboarding
 
-The first time an AI works on a project with the kit, it does a **step-by-step** onboarding: profile, Git, design (if there is an interface) and existing decisions. In each step it first **detects** what it can (in a project already underway, almost everything: stack and commands, remotes and commit style, CSS variables, Tailwind or `theme.json`, fonts, what buttons look like and the tone of the copy, libraries and conventions), **proposes** what it found and asks only for what is missing, one question at a time. Rules go to `.sdd/decisions.md` and, if there is a complete visual system or a technical decision with context, it proposes a DES or an ADR in `proposed` for you to accept. Progress is kept in the profile: once everything is done, the AI does not ask again. To start or finish it, ask: "do the onboarding".
+The first time an AI works on a project with the kit, it does a **step-by-step** onboarding: profile, Git, design (if there is an interface) and existing decisions. In each step it first **detects** what it can (in a project already underway, almost everything: stack and commands, remotes and commit style, CSS variables, Tailwind or `theme.json`, fonts, what buttons look like and the tone of the copy, libraries and conventions), **proposes** what it found and asks only for what is missing, one question at a time. Rules go to `.sdd/decisions.md`, the design you confirm goes to the **design system** and, if there is a technical decision with context, it proposes an ADR in `proposed` for you to accept. Progress is kept in the profile: once everything is done, the AI does not ask again. Steps you leave for later (for example, building the design system) stay `Pending` and the AI asks again once in the next session.
+
+### Design system
+
+Design decisions end up in a design system split into short files, in `<design folder>/system/` (`sistema/` in Spanish), so the AI reads only the part it is about to change:
+
+```
+docs/design/system/
+├── index.md          index: which parts exist and where everything is
+├── foundations/      colors, typography, spacing, layout, borders, shadows, icons, motion
+├── components/       buttons, forms, cards, alerts, navigation, modals, tables…
+└── patterns/         empty-states, loading-and-errors…
+```
+
+- **Built up bit by bit**: every time you decide something (a color, a font, the border radius, what a button looks like) the AI writes it in its part, creates the part if it does not exist and updates the index. Only what has been decided or confirmed goes in; no made-up values.
+- Values are defined once in `foundations/` with a token (`--color-primary`, `--radius-md`) and components cite them; each part says where they live in the code.
+- DESs still keep the why and the alternatives; once accepted, their rules move into the system. `.sdd/decisions.md` keeps a single line linking the index.
+- Before building or changing a screen, the AI reads the index and only the parts it touches.
+- If the project already has a design and the system is not written down, the AI asks once per session whether to build it now from the code; if you say no, it asks again in the next session, and if you ask it not to insist, it stops. To start or finish it, ask: "do the onboarding".
 
 ### Project files
 
@@ -232,7 +251,7 @@ Projects with a kit from an older version (for example, the 1.x `.claude/skills/
 | **Architecture** | A technical decision (ADR): technologies, libraries, patterns, folder and class structure, code conventions | `ADR` | `docs/architecture/` (also `docs/adr/`, `docs/decisions/`) |
 | **Fix** | An important fix: symptom, root cause, solution and prevention | `FIX` | `docs/fixes/` |
 
-One document per file: `<folder>/<PREFIX>-NNN-short-slug.md`. Folders can be changed per project in `.sdd.json` (`dirs`). In design, architecture and fix folders, only files with an ID in their name are treated as documents, so an introduction or overview file in the same folder is left alone.
+One document per file: `<folder>/<PREFIX>-NNN-short-slug.md`. Folders can be changed per project in `.sdd.json` (`dirs`). In design, architecture and fix folders, only files with an ID in their name are treated as documents, so an introduction or overview file in the same folder is left alone; so are subfolders, such as the design system (`system/`).
 
 A feature looks like this:
 

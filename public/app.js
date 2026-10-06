@@ -562,9 +562,40 @@
         <span class="small muted grow">${typeDesc(type)} <span class="faint">· <code>${esc(dir)}/</code></span></span>
         <button class="btn btn-sm" data-action="new-spec" data-pid="${pid}" data-type="${type}">+ ${esc(typeOne(type))}</button>
       </div>`;
-    if (!has) return head + emptyType(p, type, dir);
-    if (mode === 'board') return head + boardControls(false) + `<div id="board-zone">${boardHtml(p.specs.map((x) => ({ ...x, pid, pname: p.name })), false, type)}</div>`;
-    return head + projectSpecs(p, type);
+    const top = head + (type === 'design' && mode !== 'board' ? designSystemCard(p, dir) : '');
+    if (!has) return top + emptyType(p, type, dir);
+    if (mode === 'board') return top + boardControls(false) + `<div id="board-zone">${boardHtml(p.specs.map((x) => ({ ...x, pid, pname: p.name })), false, type)}</div>`;
+    return top + projectSpecs(p, type);
+  }
+
+  // Sistema de diseño (<carpeta de diseño>/sistema/): índice y partes agrupadas; la IA lo va armando de a poco
+  function designSystemCard(p, dir) {
+    const pid = p.id;
+    const ds = p.designSystem || { dir: `${dir}/${p.compat.kitLang === 'en' ? 'system' : 'sistema'}`, index: null, parts: [] };
+    const GROUPS = { foundations: t('Fundamentos'), components: t('Componentes'), patterns: t('Patrones'), '': t('General') };
+    if (!ds.index && !ds.parts.length) {
+      return `<div class="card card-pad ds-card ds-empty">
+        <div class="grow"><b>${t('Sistema de diseño')}</b> <span class="muted small">· ${t('todavía no hay')}</span>
+          <p class="muted small">${t('Cuando decidas colores, fuentes, espaciado, bordes o cómo son los componentes, la IA lo irá escribiendo en <code>{dir}/</code>: un archivo por parte y un <code>index.md</code> que dice dónde está cada cosa.', { dir: esc(ds.dir) })}</p></div>
+        <button class="btn btn-sm" data-action="copy-ds" data-pid="${pid}" data-dir="${esc(ds.dir)}" title="${t('Copiar instrucción para que la IA cree el sistema de diseño a partir del código')}">⧉ ${t('Copiar instrucción')}</button>
+      </div>`;
+    }
+    const groups = new Map();
+    for (const x of ds.parts) {
+      const k = x.group;
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(x);
+    }
+    const order = ['foundations', 'components', 'patterns', ...[...groups.keys()].filter((k) => !GROUPS[k] && k !== ''), ''];
+    const rows = order.filter((k) => groups.has(k)).map((k) => `
+      <div class="ds-group"><span class="ds-label">${esc(GROUPS[k] || k)}</span>
+        <div class="ds-parts">${groups.get(k).map((x) => `<a class="chip" href="${fileHref(pid, x.rel)}" title="${esc(x.path)} · ${esc(fullDate(x.mtime))}">${x.unread ? '<span class="dot"></span>' : ''}${esc(x.title)}</a>`).join('')}</div></div>`).join('');
+    return `<div class="card ds-card">
+      <div class="card-head"><h3>${t('Sistema de diseño')} <span class="badge" style="background:var(--panel-2)">${ds.parts.length}</span></h3>
+        <span class="small muted grow"><code>${esc(ds.dir)}/</code>${ds.updated ? ` · ${t('actualizado {x}', { x: ago(ds.updated) })}` : ''}</span>
+        ${ds.index ? `<a class="btn btn-sm" href="${fileHref(pid, ds.index)}">${t('Abrir índice')}</a>` : `<span class="badge warn" title="${t('Pídele a la IA que cree el index.md del sistema de diseño')}">${t('Falta index.md')}</span>`}</div>
+      <div class="card-pad">${rows || `<span class="muted small">${t('Solo el índice, todavía sin partes.')}</span>`}</div>
+    </div>`;
   }
 
   function emptyType(p, type, dir) {
@@ -1478,6 +1509,19 @@
         el.classList.add('ok');
         toast(t('Instrucción copiada'));
         setTimeout(() => el.classList.remove('ok'), 1500);
+      } catch { prompt(t('Instrucción:'), text); }
+    },
+    // copia la instrucción para que la IA arme el sistema de diseño a partir de lo que ya hay
+    'copy-ds': async (el) => {
+      const p = projById(el.dataset.pid);
+      const text = [
+        t('Proyecto: {x}', { x: p ? p.name : el.dataset.pid }),
+        '',
+        t('Arma el sistema de diseño de este proyecto en {dir}/ siguiendo sistema-diseno.md de la skill sdd: detecta en el código los colores, la tipografía, el espaciado, los bordes, las sombras y los componentes más repetidos, propónmelos y, cuando los confirme, escribe el index.md y una parte por cada cosa. Después marca el paso Diseño del onboarding en ✅.', { dir: el.dataset.dir }),
+      ].join('\n');
+      try {
+        await navigator.clipboard.writeText(text);
+        toast(t('Instrucción copiada'));
       } catch { prompt(t('Instrucción:'), text); }
     },
     'new-spec': (el) => dialogNewSpec(el.dataset.pid, el.dataset.type),

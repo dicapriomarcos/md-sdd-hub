@@ -33,9 +33,11 @@ Qué se decide, de forma concreta y aplicable: pantallas, flujos, componentes, e
 
 - Norma concreta que la IA debe aplicar al construir pantallas (p. ej. «los botones destructivos siempre piden confirmación»).
 
+Cuando la decisión pase a `accepted`, estas reglas y sus valores se llevan a las partes del sistema de diseño (`sistema/`) que correspondan.
+
 ## 6. Referencias
 
-Mockups, capturas, enlaces a Figma o a la documentación del sistema de diseño.
+Mockups, capturas, enlaces a Figma y a las partes del sistema de diseño afectadas (p. ej. `sistema/componentes/botones.md`).
 
 ## Historial
 

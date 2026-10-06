@@ -388,3 +388,14 @@ dialog::backdrop { background: rgba(10, 12, 18, .45); }
 .seg a:hover { background: var(--hover); text-decoration: none; color: var(--text); }
 .seg a.on { background: var(--accent-soft); color: var(--accent); }
 .chip .dot, .tabs a .dot { width: 8px; height: 8px; }
+
+/* Sistema de diseño (pestaña Diseño) */
+.ds-card { margin-bottom: 14px; }
+.ds-card .card-head .grow { flex: 1; min-width: 0; }
+.ds-empty { display: flex; align-items: flex-start; gap: 12px; }
+.ds-empty p { margin: 4px 0 0; }
+.ds-group { display: flex; gap: 12px; align-items: baseline; padding: 4px 0; }
+.ds-label { width: 110px; flex: none; color: var(--muted); font-size: 12.5px; }
+.ds-parts { display: flex; flex-wrap: wrap; gap: 6px; }
+.ds-parts .chip { color: var(--text); text-decoration: none; }
+@media (max-width: 640px) { .ds-group { flex-direction: column; gap: 4px; } .ds-empty { flex-direction: column; } }
